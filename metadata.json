@@ -1,0 +1,7 @@
+{
+  "name": "NEO Chat",
+  "description": "A modern, mobile-first AI chat application with a sleek dark aesthetic, voice capabilities, and robust file handling.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

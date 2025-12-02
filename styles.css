@@ -1,0 +1,111 @@
+:root {
+  --background: #000000;
+  --sidebar: #000000;
+  --surface: #09090b;
+  --surface-hover: #18181b;
+  --text: #ffffff;
+  --text-secondary: #a1a1aa;
+}
+
+:root[data-theme='light'] {
+  --background: #f4f4f5;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #e4e4e7;
+  --text: #09090b;
+  --text-secondary: #52525b;
+}
+
+html, body {
+  height: 100%;
+  background-color: var(--background);
+  color: var(--text);
+  overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+*::selection {
+  background-color: var(--text) !important;
+  color: var(--background) !important;
+}
+*::-moz-selection {
+  background-color: var(--text) !important;
+  color: var(--background) !important;
+}
+
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-hover); 
+  border-radius: 10px;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (max-width: 768px) {
+  body { font-size: 14px; }
+}
+
+iframe { border: none; }
+
+.slider-matte {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9999px;
+  height: 8px;
+  transition: all 0.2s ease;
+}
+.slider-matte:hover {
+  border-color: rgba(255,255,255,0.2);
+}
+.slider-matte::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.slider-matte::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+.slider-matte::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+.slider-matte::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  transition: transform 0.15s ease;
+}
+.slider-matte::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+.slider-matte::-moz-range-track {
+  background: transparent;
+}
