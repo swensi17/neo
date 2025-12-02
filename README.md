@@ -257,4 +257,4 @@ export default defineConfig({
 
 <p align="center">
   Made with ❤️ by <a href="https://github.com/swensi17">swensi17</a>
-</p>
+</
