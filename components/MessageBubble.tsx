@@ -254,16 +254,45 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(message.text);
         
-        // Use default system voice based on language
+        // Auto-detect language from text content
+        const detectLanguage = (text: string): string => {
+            // Check for Cyrillic characters (Russian)
+            const cyrillicPattern = /[\u0400-\u04FF]/;
+            // Check for Chinese characters
+            const chinesePattern = /[\u4E00-\u9FFF]/;
+            // Check for Japanese characters
+            const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF]/;
+            // Check for Korean characters
+            const koreanPattern = /[\uAC00-\uD7AF]/;
+            // Check for Arabic characters
+            const arabicPattern = /[\u0600-\u06FF]/;
+            
+            if (cyrillicPattern.test(text)) return 'ru';
+            if (chinesePattern.test(text)) return 'zh';
+            if (japanesePattern.test(text)) return 'ja';
+            if (koreanPattern.test(text)) return 'ko';
+            if (arabicPattern.test(text)) return 'ar';
+            return 'en';
+        };
+        
+        const detectedLang = detectLanguage(message.text);
+        
+        // Use voice based on detected language
         const voices = window.speechSynthesis.getVoices();
         const preferredVoice = voices.find(v => 
-            v.name.includes('Google') || 
-            v.name.includes('Natural') || 
-            v.name.includes('Premium') ||
-            v.name.includes('Samantha') ||
-            v.name.includes('Alex')
-        ) || voices.find(v => v.lang.startsWith(lang === 'ru' ? 'ru' : 'en'));
-        if (preferredVoice) utterance.voice = preferredVoice;
+            v.lang.startsWith(detectedLang) && (
+                v.name.includes('Google') || 
+                v.name.includes('Natural') || 
+                v.name.includes('Premium')
+            )
+        ) || voices.find(v => v.lang.startsWith(detectedLang));
+        
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+            utterance.lang = preferredVoice.lang;
+        } else {
+            utterance.lang = detectedLang;
+        }
         
         utterance.rate = 1.0;
         utterance.pitch = 1.0;

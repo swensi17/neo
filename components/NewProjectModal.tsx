@@ -53,6 +53,8 @@ interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateProject: (project: Omit<Project, 'id' | 'createdAt' | 'chatIds'>) => void;
+  onSelectExisting?: (projectId: string) => void;
+  existingProjects?: Array<{ id: string; name: string }>;
   isRu: boolean;
   isLight: boolean;
 }
@@ -61,6 +63,8 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   isOpen,
   onClose,
   onCreateProject,
+  onSelectExisting,
+  existingProjects = [],
   isRu,
   isLight
 }) => {
@@ -82,6 +86,19 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
   const handleCreate = () => {
     if (!name.trim()) return;
+    
+    // Check if project with same name exists
+    const existing = existingProjects.find(
+      p => p.name.toLowerCase() === name.trim().toLowerCase()
+    );
+    
+    if (existing && onSelectExisting) {
+      // Redirect to existing project
+      onSelectExisting(existing.id);
+      onClose();
+      return;
+    }
+    
     onCreateProject({
       name: name.trim(),
       icon: selectedIcon,

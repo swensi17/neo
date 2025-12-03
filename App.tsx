@@ -120,12 +120,63 @@ const ChatItem: React.FC<ChatItemProps> = ({ session, isSelected, isLight, onSel
   );
 };
 
+// Project Chat Item with double-confirm delete
+interface ProjectChatItemProps {
+  chat: ChatSession;
+  isSelected: boolean;
+  isLight: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  lang: string;
+}
+
+const ProjectChatItem: React.FC<ProjectChatItemProps> = ({ chat, isSelected, isLight, onSelect, onDelete, lang }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptic.light();
+    if (confirmDelete) {
+      onDelete();
+      setConfirmDelete(false);
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  };
+
+  return (
+    <div 
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+        isSelected
+          ? (isLight ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white')
+          : (isLight ? 'text-gray-600 active:text-gray-900' : 'text-zinc-400 active:text-white')
+      }`}
+    >
+      <span className="flex-1 text-[13px] truncate">{chat.title || (lang === 'ru' ? 'Новый чат' : 'New chat')}</span>
+      <button 
+        onClick={handleDeleteClick}
+        className={`p-1 rounded transition-all md:opacity-0 md:group-hover:opacity-100 ${
+          confirmDelete 
+            ? 'text-red-500 opacity-100' 
+            : (isLight ? 'text-gray-400 hover:text-red-500' : 'text-zinc-500 hover:text-red-400')
+        }`}
+        title={confirmDelete ? (lang === 'ru' ? 'Нажмите ещё раз' : 'Click again') : (lang === 'ru' ? 'Удалить' : 'Delete')}
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialPage, setSettingsInitialPage] = useState<'main' | 'api' | 'profile' | 'persona' | 'language' | 'appearance' | 'data' | 'sound' | undefined>(undefined);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isLiveModeOpen, setIsLiveModeOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -158,6 +209,7 @@ const App: React.FC = () => {
   });
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isProjectsCollapsed, setIsProjectsCollapsed] = useState(false);
   
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -363,13 +415,18 @@ const App: React.FC = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Track previous message count to scroll only on new messages
+  const prevMessageCountRef = useRef(0);
+  
   useEffect(() => {
-    if (isStreaming) {
-        // Всегда скроллить вниз при стриминге
-        scrollToBottom();
-    } else if (!isStreaming) {
+    const currentSession = sessions.find(s => s.id === currentSessionId);
+    const messageCount = currentSession?.messages.length || 0;
+    
+    // Scroll only when streaming or when new message added
+    if (isStreaming || messageCount > prevMessageCountRef.current) {
         scrollToBottom();
     }
+    prevMessageCountRef.current = messageCount;
   }, [currentSessionId, sessions, isStreaming]);
 
   const scrollToBottom = () => {
@@ -379,15 +436,15 @@ const App: React.FC = () => {
   const createSession = () => {
     haptic.medium();
     
-    // Check if current session is empty (no messages) - reuse it instead of creating new
+    // Check if current session is empty (no messages) and belongs to same project - reuse it
     const currentSession = sessions.find(s => s.id === currentSessionId);
-    if (currentSession && currentSession.messages.length === 0) {
+    if (currentSession && currentSession.messages.length === 0 && currentSession.projectId === selectedProjectId) {
       setIsMobileMenuOpen(false);
       return;
     }
     
-    // Check if there's already an empty session at the top
-    const emptySession = sessions.find(s => s.messages.length === 0);
+    // Check if there's already an empty session in current project/no project
+    const emptySession = sessions.find(s => s.messages.length === 0 && s.projectId === selectedProjectId);
     if (emptySession) {
       setCurrentSessionId(emptySession.id);
       setIsMobileMenuOpen(false);
@@ -396,11 +453,12 @@ const App: React.FC = () => {
     
     const newSession: ChatSession = {
       id: Date.now().toString(),
-      title: t.newChat,
+      title: selectedProjectId ? '' : t.newChat,
       messages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      persona: DEFAULT_PERSONA
+      persona: DEFAULT_PERSONA,
+      projectId: selectedProjectId || undefined
     };
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
@@ -415,13 +473,17 @@ const App: React.FC = () => {
       }
   };
 
-  // Search chats by content
-  const filteredSessions = searchQuery.trim() 
-    ? sessions.filter(s => 
-        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.messages.some(m => m.text.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : sessions;
+  // Filter regular chats (without project) - always show in main list
+  const filteredSessions = sessions.filter(s => {
+    // Hide project chats from main list
+    if (s.projectId) return false;
+    // Filter by search
+    if (searchQuery.trim()) {
+      return s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.messages.some(m => m.text.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return true;
+  });
 
   // Export all data
   const exportAllData = () => {
@@ -846,6 +908,7 @@ const App: React.FC = () => {
       showToast(settings.language === 'ru' 
         ? 'Добавьте API ключ в настройках' 
         : 'Please add API key in Settings', 'error');
+      setSettingsInitialPage('api');
       setIsSettingsOpen(true);
       return;
     }
@@ -966,7 +1029,7 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="flex bg-background text-text overflow-hidden font-sans selection:bg-accent/20 transition-colors duration-300" style={{ height: '100dvh', minHeight: '100dvh' }}>
+    <div className="flex bg-background text-text overflow-hidden font-sans selection:bg-accent/20 transition-colors duration-300" style={{ height: 'var(--app-height, 100dvh)', minHeight: 'var(--app-height, 100dvh)' }}>
       
       {isMobileMenuOpen && (
         <div 
@@ -978,49 +1041,50 @@ const App: React.FC = () => {
       {/* Sidebar - ChatGPT style */}
       <aside 
         className={`
-            fixed md:relative z-50 h-full bg-sidebar flex flex-col transition-all duration-150 ease-out
+            fixed md:relative z-50 bg-sidebar flex flex-col transition-all duration-150 ease-out
             ${isMobileMenuOpen ? 'translate-x-0 w-[300px]' : '-translate-x-full w-[300px] md:translate-x-0'}
             ${isSidebarOpen ? 'md:w-[260px]' : 'md:w-0 md:min-w-0 md:overflow-hidden'}
         `}
+        style={{ height: 'var(--app-height, 100dvh)' }}
       >
         {/* Top bar - Search + New chat button */}
         <div className="p-3 flex items-center gap-2" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
             <div className="flex-1 relative">
-                <Search size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-500'}`} strokeWidth={2} />
+                <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-600'}`} strokeWidth={2} />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={settings.language === 'ru' ? 'Поиск' : 'Search'}
-                    className={`w-full rounded-full pl-11 pr-3 py-2.5 text-[15px] text-text focus:outline-none transition-colors ${
+                    className={`w-full rounded-full pl-9 pr-3 py-2 text-[14px] text-text focus:outline-none transition-colors ${
                         settings.theme === 'light' 
                             ? 'bg-gray-100 placeholder-gray-400 focus:bg-gray-200' 
-                            : 'bg-[#1a1a1a] placeholder-zinc-500 focus:bg-[#252525]'
+                            : 'bg-black border border-zinc-800/50 placeholder-zinc-600 focus:border-zinc-700'
                     }`}
                 />
                 {searchQuery && (
                     <button onClick={() => setSearchQuery('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-400 hover:text-white'}`}>
-                        <X size={16} />
+                        <X size={14} />
                     </button>
                 )}
             </div>
             <button 
                 onClick={createSession}
-                className={`p-2.5 rounded-full transition-colors ${
+                className={`p-2 rounded-full transition-colors ${
                     settings.theme === 'light' 
-                        ? 'bg-gray-100 text-gray-500 active:bg-gray-200 active:text-gray-700' 
-                        : 'bg-[#1a1a1a] text-zinc-400 active:text-white'
+                        ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 active:bg-gray-200 active:text-gray-700' 
+                        : 'bg-black border border-zinc-800/50 text-zinc-500 hover:border-zinc-700 hover:text-white active:text-white'
                 }`}
                 title={t.newChat}
             >
-                <PenSquare size={18} strokeWidth={1.5} />
+                <PenSquare size={16} strokeWidth={1.5} />
             </button>
         </div>
 
         {/* Projects Section */}
         <div className="px-2 pb-2">
-            {/* Header with collapse button */}
-            <div className="flex items-center justify-between px-1 mb-1">
+            {/* Header with New Project and collapse button */}
+            <div className="flex items-center justify-between mb-1">
                 <button 
                     onClick={() => { haptic.light(); setIsNewProjectModalOpen(true); }}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
@@ -1047,42 +1111,169 @@ const App: React.FC = () => {
                 )}
             </div>
             
-            {/* Projects List */}
-            {projects.length > 0 && !isProjectsCollapsed && (
-                <div className="space-y-0.5">
-                    {projects.map(project => {
-                        const IconComponent = getProjectIcon(project.icon);
-                        const isSelected = selectedProjectId === project.id;
-                        return (
+            {/* Projects List with nested chats */}
+            {!isProjectsCollapsed && projects.map(project => {
+                const IconComponent = getProjectIcon(project.icon);
+                const isExpanded = expandedProjects.has(project.id);
+                const projectChats = sessions.filter(s => s.projectId === project.id);
+                
+                return (
+                    <div key={project.id} className="mb-0.5">
+                        {/* Project Header */}
+                        <div 
+                            className={`group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
+                                selectedProjectId === project.id
+                                    ? (settings.theme === 'light' ? 'text-gray-900' : 'text-white')
+                                    : (settings.theme === 'light' ? 'text-gray-600' : 'text-zinc-400')
+                            }`}
+                        >
+                            {/* Expand/Collapse button */}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    haptic.light();
+                                    setExpandedProjects(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(project.id)) {
+                                            next.delete(project.id);
+                                        } else {
+                                            next.add(project.id);
+                                        }
+                                        return next;
+                                    });
+                                }}
+                                className={`p-0.5 rounded transition-colors ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-500'}`}
+                            >
+                                <ChevronLeft size={14} className={`transition-transform ${isExpanded ? '-rotate-90' : 'rotate-0'}`} />
+                            </button>
+                            
                             <div 
-                                key={project.id}
-                                onClick={() => { 
-                                    haptic.light(); 
+                                className="flex-1 flex items-center gap-2 min-w-0"
+                                onClick={() => {
+                                    haptic.light();
                                     setSelectedProjectId(project.id);
+                                    // Auto-expand and select first chat
+                                    setExpandedProjects(prev => new Set(prev).add(project.id));
+                                    if (projectChats.length > 0) {
+                                        setCurrentSessionId(projectChats[0].id);
+                                    } else {
+                                        const newSession: ChatSession = {
+                                            id: Date.now().toString(),
+                                            title: '',
+                                            messages: [],
+                                            createdAt: Date.now(),
+                                            updatedAt: Date.now(),
+                                            persona: DEFAULT_PERSONA,
+                                            projectId: project.id
+                                        };
+                                        setSessions(prev => [newSession, ...prev]);
+                                        setCurrentSessionId(newSession.id);
+                                    }
                                     setIsMobileMenuOpen(false);
                                 }}
-                                className={`group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                                    isSelected
-                                        ? (settings.theme === 'light' ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white')
-                                        : (settings.theme === 'light' ? 'text-gray-700 active:text-gray-900' : 'text-zinc-300 active:text-white')
-                                }`}
                             >
-                                <IconComponent size={18} style={{ color: project.color === '#ffffff' ? undefined : project.color }} />
-                                <span className="flex-1 text-[13px] truncate">{project.name}</span>
-                                <ProjectDeleteButton 
-                                    projectId={project.id}
-                                    isLight={settings.theme === 'light'}
-                                    onDelete={() => {
-                                        setProjects(prev => prev.filter(p => p.id !== project.id));
-                                        if (selectedProjectId === project.id) setSelectedProjectId(null);
-                                    }}
-                                    lang={settings.language}
-                                />
+                                <IconComponent size={16} style={{ color: project.color === '#ffffff' ? undefined : project.color }} />
+                                <span className="text-[13px] font-medium truncate">{project.name}</span>
                             </div>
-                        );
-                    })}
-                </div>
-            )}
+                            
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    haptic.light();
+                                    setSelectedProjectId(project.id);
+                                    const newSession: ChatSession = {
+                                        id: Date.now().toString(),
+                                        title: '',
+                                        messages: [],
+                                        createdAt: Date.now(),
+                                        updatedAt: Date.now(),
+                                        persona: DEFAULT_PERSONA,
+                                        projectId: project.id
+                                    };
+                                    setSessions(prev => [newSession, ...prev]);
+                                    setCurrentSessionId(newSession.id);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className={`p-1 rounded transition-all md:opacity-0 md:group-hover:opacity-100 ${
+                                    settings.theme === 'light' ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                                title={settings.language === 'ru' ? 'Новый чат' : 'New chat'}
+                            >
+                                <Plus size={12} />
+                            </button>
+                            <ProjectDeleteButton 
+                                projectId={project.id}
+                                isLight={settings.theme === 'light'}
+                                onDelete={() => {
+                                    setProjects(prev => prev.filter(p => p.id !== project.id));
+                                    setSessions(prev => prev.filter(s => s.projectId !== project.id));
+                                    if (selectedProjectId === project.id) {
+                                        setSelectedProjectId(null);
+                                        const firstChat = sessions.find(s => !s.projectId);
+                                        if (firstChat) setCurrentSessionId(firstChat.id);
+                                    }
+                                }}
+                                lang={settings.language}
+                            />
+                        </div>
+                        
+                        {/* Project Chats - nested under project */}
+                        {isExpanded && (
+                            <div className="ml-6 space-y-0.5">
+                                {projectChats.length === 0 ? (
+                                    <div className={`px-2 py-1.5 text-[12px] ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-600'}`}>
+                                        {settings.language === 'ru' ? 'Нет чатов' : 'No chats'}
+                                    </div>
+                                ) : (
+                                    projectChats.slice(0, 5).map(chat => (
+                                        <ProjectChatItem
+                                            key={chat.id}
+                                            chat={chat}
+                                            isSelected={currentSessionId === chat.id && selectedProjectId === project.id}
+                                            isLight={settings.theme === 'light'}
+                                            onSelect={() => {
+                                                haptic.light();
+                                                setSelectedProjectId(project.id);
+                                                setCurrentSessionId(chat.id);
+                                                setIsMobileMenuOpen(false);
+                                            }}
+                                            onDelete={() => {
+                                                const newSessions = sessions.filter(s => s.id !== chat.id);
+                                                setSessions(newSessions);
+                                                
+                                                // Always exit project and go to main
+                                                setSelectedProjectId(null);
+                                                const firstNonProjectChat = newSessions.find(s => !s.projectId);
+                                                if (firstNonProjectChat) {
+                                                    setCurrentSessionId(firstNonProjectChat.id);
+                                                } else {
+                                                    // Create new chat
+                                                    const newSession: ChatSession = {
+                                                        id: Date.now().toString(),
+                                                        title: t.newChat,
+                                                        messages: [],
+                                                        createdAt: Date.now(),
+                                                        updatedAt: Date.now(),
+                                                        persona: DEFAULT_PERSONA
+                                                    };
+                                                    setSessions(prev => [newSession, ...prev]);
+                                                    setCurrentSessionId(newSession.id);
+                                                }
+                                            }}
+                                            lang={settings.language}
+                                        />
+                                    ))
+                                )}
+                                {projectChats.length > 5 && (
+                                    <div className={`px-2 py-1 text-[11px] ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-600'}`}>
+                                        +{projectChats.length - 5} {settings.language === 'ru' ? 'ещё' : 'more'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
 
         {/* Chat list */}
@@ -1095,17 +1286,32 @@ const App: React.FC = () => {
                     isLight={settings.theme === 'light'}
                     onSelect={() => {
                         haptic.light();
-                        setCurrentSessionId(session.id);
                         setSelectedProjectId(null);
+                        setCurrentSessionId(session.id);
                         setIsMobileMenuOpen(false);
                     }}
                     onDelete={() => {
                         const newSessions = sessions.filter(s => s.id !== session.id);
                         setSessions(newSessions);
-                        if (currentSessionId === session.id) {
-                            setCurrentSessionId(newSessions.length > 0 ? newSessions[0].id : null);
+                        
+                        // Find first non-project chat or create new
+                        const firstNonProjectChat = newSessions.find(s => !s.projectId);
+                        if (firstNonProjectChat) {
+                            setCurrentSessionId(firstNonProjectChat.id);
+                        } else {
+                            // Create new chat
+                            const newSession: ChatSession = {
+                                id: Date.now().toString(),
+                                title: t.newChat,
+                                messages: [],
+                                createdAt: Date.now(),
+                                updatedAt: Date.now(),
+                                persona: DEFAULT_PERSONA
+                            };
+                            setSessions(prev => [newSession, ...prev]);
+                            setCurrentSessionId(newSession.id);
                         }
-                        if (newSessions.length === 0) createSession();
+                        setSelectedProjectId(null);
                     }}
                     lang={settings.language}
                 />
@@ -1242,20 +1448,6 @@ const App: React.FC = () => {
             </div>
         )}
 
-        {/* Project View */}
-        {selectedProject ? (
-            <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col items-center justify-center">
-                {/* Empty State */}
-                <div className="text-center px-4">
-                    <MessageSquare size={32} className="text-zinc-500 mb-4 mx-auto" />
-                    <p className={`text-[15px] whitespace-pre-line ${settings.theme === 'light' ? 'text-gray-600' : 'text-zinc-400'}`}>
-                        {settings.language === 'ru' 
-                            ? 'Чаты в этом проекте\nбудут видны здесь.' 
-                            : 'Chats in this project\nwill appear here.'}
-                    </p>
-                </div>
-            </div>
-        ) : (
         <div 
             ref={chatContainerRef} 
             className="flex-1 overflow-y-auto scrollbar-hide pb-4 relative"
@@ -1267,9 +1459,6 @@ const App: React.FC = () => {
             <div className="max-w-3xl mx-auto px-4">
                 {currentSession && currentSession.messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
-                        <div className="w-14 h-14 rounded-2xl bg-surface shadow-xl flex items-center justify-center mb-6">
-                            <Sparkles size={28} className="text-text" fill="currentColor" />
-                        </div>
                         <h2 className="text-xl md:text-2xl font-semibold mb-2 text-text tracking-tight">
                             {settings.language === 'ru' ? `Привет, ${userProfile.name}` : `Hello, ${userProfile.name}`}
                         </h2>
@@ -1331,7 +1520,6 @@ const App: React.FC = () => {
                 </button>
             )}
         </div>
-        )}
 
         <div className="w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-2 z-20 px-2 md:px-0 transition-colors duration-300" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <InputArea 
@@ -1351,12 +1539,13 @@ const App: React.FC = () => {
 
       <SettingsModal 
         isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => { setIsSettingsOpen(false); setSettingsInitialPage(undefined); }}
         userProfile={userProfile}
         onUpdateProfile={setUserProfile}
         settings={settings}
         onUpdateSettings={setSettings}
         onClearHistory={clearAllHistory}
+        initialPage={settingsInitialPage}
       />
       
       <DownloadModal 
@@ -1400,6 +1589,15 @@ const App: React.FC = () => {
         isOpen={isNewProjectModalOpen}
         onClose={() => setIsNewProjectModalOpen(false)}
         onCreateProject={handleCreateProject}
+        existingProjects={projects.map(p => ({ id: p.id, name: p.name }))}
+        onSelectExisting={(projectId) => {
+          setSelectedProjectId(projectId);
+          setExpandedProjects(prev => new Set(prev).add(projectId));
+          const projectChats = sessions.filter(s => s.projectId === projectId);
+          if (projectChats.length > 0) {
+            setCurrentSessionId(projectChats[0].id);
+          }
+        }}
         isRu={settings.language === 'ru'}
         isLight={settings.theme === 'light'}
       />

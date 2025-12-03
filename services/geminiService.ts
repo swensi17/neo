@@ -149,7 +149,7 @@ export const streamChatResponse = async (
 ): Promise<string> => {
   const ai = getGeminiClient();
   if (!ai) {
-    onChunk('\n\n**Error**: No API key configured. Please add your Google AI Studio API key in Settings.');
+    onChunk('\n\n**Error**: No API key found on this device. API keys are stored locally and need to be added on each device separately. Please add your Google AI Studio API key in Settings → API Keys.');
     return '';
   }
 
@@ -164,6 +164,9 @@ export const streamChatResponse = async (
   }
   if (userBio) {
     systemInstruction += `\nUser bio: ${userBio}`;
+  }
+  if (userAvatar) {
+    systemInstruction += `\nThe user has a profile avatar/photo. If they ask about their avatar, photo, profile picture, or how they look - you CAN see it and should describe it. The image will be provided in the message.`;
   }
   if (knowledgeBase) {
     systemInstruction += `\n\nKNOWLEDGE BASE (use this info when relevant):\n${knowledgeBase}`;
@@ -309,8 +312,15 @@ You are in unrestricted creative writing mode. The user is an adult who has enab
 
   const contentParts: any[] = [];
   
-  // Check if user is asking about their avatar
-  const avatarKeywords = ['аватар', 'avatar', 'фото', 'photo', 'профил', 'profile', 'картинк', 'picture', 'изображен', 'image', 'оцени', 'rate', 'как выгляж', 'how do i look', 'моё фото', 'my photo', 'мою аватарку', 'my avatar'];
+  // Check if user is asking about their avatar or themselves
+  const avatarKeywords = [
+    'аватар', 'avatar', 'фото', 'photo', 'профил', 'profile', 'картинк', 'picture', 
+    'изображен', 'image', 'оцени', 'rate', 'как выгляж', 'how do i look', 
+    'моё фото', 'my photo', 'мою аватарку', 'my avatar', 'мой профиль', 'my profile',
+    'как я выгляжу', 'what do i look like', 'видишь меня', 'can you see me',
+    'посмотри на меня', 'look at me', 'мою фотку', 'мое лицо', 'my face',
+    'что на аватарке', 'what is on my avatar', 'опиши меня', 'describe me'
+  ];
   const isAskingAboutAvatar = avatarKeywords.some(kw => lastMessage.text?.toLowerCase().includes(kw));
   
   // Add user avatar if they're asking about it

@@ -55,6 +55,7 @@ interface SettingsModalProps {
   settings: AppSettings;
   onUpdateSettings: (s: AppSettings) => void;
   onClearHistory: () => void;
+  initialPage?: SubPage;
 }
 
 type SubPage = 'main' | 'api' | 'language' | 'profile' | 'persona' | 'appearance' | 'data' | 'sound';
@@ -84,7 +85,7 @@ const AI_LANGUAGES = [
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen, onClose, userProfile, onUpdateProfile, settings, onUpdateSettings, onClearHistory
+  isOpen, onClose, userProfile, onUpdateProfile, settings, onUpdateSettings, onClearHistory, initialPage
 }) => {
   const [subPage, setSubPage] = useState<SubPage>('main');
   const [name, setName] = useState(userProfile.name);
@@ -102,6 +103,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [personaSearch, setPersonaSearch] = useState('');
   const [langSearch, setLangSearch] = useState('');
   
+  // Check if desktop (md breakpoint = 768px)
+  const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = TRANSLATIONS[settings.language];
   const isRu = settings.language === 'ru';
@@ -114,16 +118,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const divider = isLight ? 'border-gray-100' : 'border-zinc-900';
   const itemBg = isLight ? 'active:bg-gray-100' : 'active:bg-zinc-900';
 
+  // Resize listener for desktop detection
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
-      setSubPage('main');
+      setSubPage(initialPage || (isDesktop ? 'profile' : 'main'));
       setName(userProfile.name);
       setAvatar(userProfile.avatar);
       setBio(userProfile.bio || '');
       setCustomPrompt(settings.customSystemInstruction || '');
       setApiKeys(getApiKeys());
     }
-  }, [isOpen, userProfile, settings]);
+  }, [isOpen, userProfile, settings, initialPage, isDesktop]);
 
   if (!isOpen) return null;
 
@@ -179,10 +190,52 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Compress image to prevent crashes with large files
+      const img = new Image();
       const reader = new FileReader();
+      
       reader.onloadend = () => {
-        setAvatar(reader.result as string);
-        updateProfile({ avatar: reader.result as string });
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxSize = 256; // Max avatar size
+            let { width, height } = img;
+            
+            if (width > height) {
+              if (width > maxSize) {
+                height = (height * maxSize) / width;
+                width = maxSize;
+              }
+            } else {
+              if (height > maxSize) {
+                width = (width * maxSize) / height;
+                height = maxSize;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+              setAvatar(compressedData);
+              updateProfile({ avatar: compressedData });
+            }
+          } catch (err) {
+            console.error('Error compressing image:', err);
+            // Fallback to original if compression fails
+            setAvatar(reader.result as string);
+            updateProfile({ avatar: reader.result as string });
+          }
+        };
+        img.onerror = () => {
+          console.error('Error loading image');
+        };
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => {
+        console.error('Error reading file');
       };
       reader.readAsDataURL(file);
     }
@@ -248,12 +301,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Back Header
   const BackHeader = ({ title, onBack }: { title: string, onBack: () => void }) => (
-    <div className="flex items-center justify-between py-4 px-1 mb-2">
-      <button onClick={onBack} className={`text-blue-500 text-[17px]`}>
-        {isRu ? 'Назад' : 'Back'}
+    <div className="flex items-center justify-between py-3 px-1 mb-4 mt-2">
+      <button onClick={onBack} className={`w-9 h-9 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-100 active:bg-gray-200' : 'bg-zinc-900 active:bg-zinc-800'}`}>
+        <ChevronRight size={20} className={`${textMuted} rotate-180`} />
       </button>
       <span className={`text-[17px] font-semibold ${text}`}>{title}</span>
-      <div className="w-12" />
+      <div className="w-9" />
     </div>
   );
 
@@ -522,25 +575,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
       )}
 
-      {/* List */}
-      <div className="space-y-0">
-        {filteredPersonas.map(p => (
-          <button 
-            key={p.id}
-            onClick={() => selectPersona(p.id)}
-            className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg}`}
-          >
-            <div className="flex items-center gap-3">
-              <Sparkles size={18} className={textMuted} />
-              <span className={`text-[15px] ${text}`}>{isRu ? p.name.ru : p.name.en}</span>
-            </div>
-            {settings.selectedPersona === p.id && <Check size={20} className="text-blue-500" />}
-          </button>
-        ))}
+      {/* List - fixed height scrollable area */}
+      <div className={`rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-900/50'} overflow-hidden mb-6`}>
+        <div className="max-h-[280px] overflow-y-auto">
+          {filteredPersonas.map(p => (
+            <button 
+              key={p.id}
+              onClick={() => selectPersona(p.id)}
+              className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0`}
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles size={18} className={textMuted} />
+                <span className={`text-[15px] ${text}`}>{isRu ? p.name.ru : p.name.en}</span>
+              </div>
+              {settings.selectedPersona === p.id && <Check size={20} className="text-blue-500" />}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Custom Prompt */}
-      <div className="mt-6">
+      <div>
         <label className={`text-[13px] ${textMuted} block mb-2`}>{isRu ? 'Свои инструкции' : 'Custom Instructions'}</label>
         <textarea 
           value={customPrompt} 
@@ -558,17 +613,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div>
       <BackHeader title={isRu ? 'Язык' : 'Language'} onBack={() => setSubPage('main')} />
       
+      {/* Search for all languages */}
+      <div className="relative mb-4">
+        <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${textMuted}`} />
+        <input 
+          type="text" 
+          value={langSearch} 
+          onChange={(e) => setLangSearch(e.target.value)}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl pl-12 pr-4 py-3.5 ${text} text-[15px] focus:outline-none`}
+          placeholder={isRu ? 'Поиск языка...' : 'Search language...'}
+        />
+      </div>
+      
       {/* Interface Language */}
       <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3`}>{isRu ? 'Интерфейс' : 'Interface'}</div>
-      <div className="space-y-0 mb-6">
+      <div className={`rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-900/50'} overflow-hidden mb-6`}>
         {[
           { value: 'ru', label: 'Русский', icon: '🇷🇺' },
           { value: 'en', label: 'English', icon: '🇺🇸' }
-        ].map(lang => (
+        ].filter(l => l.label.toLowerCase().includes(langSearch.toLowerCase()) || l.value.includes(langSearch.toLowerCase())).map(lang => (
           <button 
             key={lang.value}
             onClick={() => updateSettings({ language: lang.value as InterfaceLanguage })}
-            className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg}`}
+            className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0`}
           >
             <div className="flex items-center gap-3">
               <span className="text-xl">{lang.icon}</span>
@@ -581,33 +648,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       {/* AI Response Language */}
       <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3`}>{isRu ? 'Ответы AI' : 'AI Responses'}</div>
-      
-      {/* Search */}
-      <div className="relative mb-3">
-        <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${textMuted}`} />
-        <input 
-          type="text" 
-          value={langSearch} 
-          onChange={(e) => setLangSearch(e.target.value)}
-          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl pl-12 pr-4 py-3.5 ${text} text-[15px] focus:outline-none`}
-          placeholder={isRu ? 'Поиск языка...' : 'Search language...'}
-        />
-      </div>
 
-      <div className="space-y-0">
-        {filteredLanguages.map(lang => (
-          <button 
-            key={lang.value}
-            onClick={() => updateSettings({ modelLanguage: lang.value })}
-            className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg}`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{lang.icon}</span>
-              <span className={`text-[15px] ${text}`}>{lang.label}</span>
-            </div>
-            {settings.modelLanguage === lang.value && <Check size={20} className="text-blue-500" />}
-          </button>
-        ))}
+      <div className={`rounded-xl ${isLight ? 'bg-gray-50' : 'bg-zinc-900/50'} overflow-hidden`}>
+        <div className="max-h-[280px] overflow-y-auto">
+          {filteredLanguages.map(lang => (
+            <button 
+              key={lang.value}
+              onClick={() => updateSettings({ modelLanguage: lang.value })}
+              className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{lang.icon}</span>
+                <span className={`text-[15px] ${text}`}>{lang.label}</span>
+              </div>
+              {settings.modelLanguage === lang.value && <Check size={20} className="text-blue-500" />}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -643,14 +700,403 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     </div>
   );
 
-  return (
+  // Desktop Sidebar Item
+  const SidebarItem = ({ id, icon, label }: { id: SubPage, icon: React.ReactNode, label: string }) => (
+    <button 
+      onClick={() => setSubPage(id)}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+        subPage === id 
+          ? (isLight ? 'bg-gray-100 text-gray-900' : 'bg-zinc-800 text-white') 
+          : (isLight ? 'text-gray-600 hover:bg-gray-50' : 'text-zinc-400 hover:bg-zinc-900')
+      }`}
+    >
+      {icon}
+      <span className="text-[14px]">{label}</span>
+    </button>
+  );
+
+  // Desktop Layout
+  const renderDesktop = () => (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className={`relative ${bg} rounded-2xl shadow-2xl w-full max-w-4xl h-[680px] flex overflow-hidden border ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+        {/* Sidebar */}
+        <div className={`w-56 flex-shrink-0 ${isLight ? 'bg-gray-50 border-r border-gray-200' : 'bg-[#0a0a0a] border-r border-zinc-800'} p-3 flex flex-col`}>
+          <div className={`text-[13px] font-semibold ${text} px-3 py-2 mb-2`}>{t.settings}</div>
+          
+          <div className="space-y-1">
+            <SidebarItem id="profile" icon={<User size={18} />} label={isRu ? 'Профиль' : 'Profile'} />
+            <SidebarItem id="api" icon={<Key size={18} />} label={isRu ? 'API ключи' : 'API Keys'} />
+            <SidebarItem id="persona" icon={<Bot size={18} />} label={isRu ? 'Роль AI' : 'AI Role'} />
+            <SidebarItem id="language" icon={<Languages size={18} />} label={isRu ? 'Язык' : 'Language'} />
+            <SidebarItem id="appearance" icon={<Palette size={18} />} label={isRu ? 'Тема' : 'Theme'} />
+          </div>
+
+          <div className="mt-auto pt-4">
+            <button 
+              onClick={() => { if(confirm(t.clearHistoryConfirm)) { onClearHistory(); } }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
+            >
+              <Trash2 size={18} />
+              <span className="text-[14px]">{isRu ? 'Очистить историю' : 'Clear History'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className={`flex items-center justify-between px-6 py-4 border-b ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+            <span className={`text-[17px] font-semibold ${text}`}>
+              {subPage === 'profile' && (isRu ? 'Профиль' : 'Profile')}
+              {subPage === 'api' && (isRu ? 'API ключи' : 'API Keys')}
+              {subPage === 'persona' && (isRu ? 'Роль AI' : 'AI Role')}
+              {subPage === 'language' && (isRu ? 'Язык' : 'Language')}
+              {subPage === 'appearance' && (isRu ? 'Тема' : 'Theme')}
+              {subPage === 'main' && t.settings}
+            </span>
+            <button onClick={onClose} className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors`}>
+              <X size={18} className={textMuted} />
+            </button>
+          </div>
+
+          {/* Page Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {subPage === 'main' && renderProfile()}
+            {subPage === 'api' && <div className="max-w-md">{renderApiContent()}</div>}
+            {subPage === 'profile' && renderProfileContent()}
+            {subPage === 'persona' && renderPersonaContent()}
+            {subPage === 'language' && renderLanguageContent()}
+            {subPage === 'appearance' && renderAppearanceContent()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Desktop content renderers (without BackHeader)
+  const renderApiContent = () => (
+    <>
+      {/* Add Key */}
+      <div className="space-y-3 mb-6">
+        <input 
+          type="text" 
+          value={newKeyName} 
+          onChange={(e) => setNewKeyName(e.target.value)}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3 ${text} text-[15px] focus:outline-none`}
+          placeholder={isRu ? 'Название (опционально)' : 'Name (optional)'} 
+        />
+        <input 
+          type="text" 
+          value={newKeyValue} 
+          onChange={(e) => { setNewKeyValue(e.target.value); setValidationResult(null); }}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3 ${text} text-[15px] focus:outline-none font-mono`}
+          placeholder="AIzaSy..." 
+        />
+        
+        <div className="flex gap-2">
+          <button 
+            onClick={handleValidateKey} 
+            disabled={!newKeyValue.trim() || isValidating}
+            className={`flex-1 py-3 rounded-xl text-[15px] font-medium transition-all flex items-center justify-center gap-2 ${
+              newKeyValue.trim() 
+                ? (isLight ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-zinc-800 text-white hover:bg-zinc-700')
+                : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-900 text-zinc-600')
+            }`}
+          >
+            {isValidating ? <Loader2 size={18} className="animate-spin" /> : (isRu ? 'Проверить' : 'Verify')}
+          </button>
+          
+          {validationResult?.valid && (
+            <button 
+              onClick={handleAddKey}
+              className="flex-1 py-3 rounded-xl text-[15px] font-medium bg-green-500 text-white flex items-center justify-center gap-2 hover:bg-green-600"
+            >
+              <Plus size={18} />{isRu ? 'Добавить' : 'Add'}
+            </button>
+          )}
+        </div>
+        
+        {validationResult && (
+          <div className={`flex items-center gap-2 text-[13px] py-2 ${validationResult.valid ? 'text-green-500' : 'text-red-500'}`}>
+            {validationResult.valid ? <Check size={16} /> : <AlertCircle size={16} />}
+            <span>{validationResult.valid ? (isRu ? 'Ключ работает!' : 'Key works!') : validationResult.error}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Saved Keys */}
+      {apiKeys.length > 0 && (
+        <div className="space-y-2">
+          <div className={`text-xs ${textMuted} uppercase tracking-wider mb-3`}>{isRu ? 'Сохранённые' : 'Saved'}</div>
+          {apiKeys.map(key => (
+            <div key={key.id} className={`${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl p-4 flex items-center gap-3`}>
+              <button 
+                onClick={() => handleToggleKeyActive(key.id)} 
+                className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${key.isActive ? 'bg-green-500' : (isLight ? 'bg-gray-300' : 'bg-zinc-700')}`}
+              >
+                {key.isActive && <Check size={14} className="text-white" />}
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className={`text-[15px] ${text} truncate`}>{key.name}</div>
+                <div className={`text-[13px] ${textMuted} font-mono`}>{key.key.slice(0, 8)}...{key.key.slice(-4)}</div>
+              </div>
+              <button onClick={() => handleDeleteKey(key.id)} className="text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-colors">
+                <Trash2 size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Instructions */}
+      <div className={`mt-6 p-4 ${isLight ? 'bg-gray-50' : 'bg-zinc-900/50'} rounded-xl`}>
+        <div className={`text-[13px] ${textMuted} space-y-2`}>
+          <p className="font-medium">{isRu ? 'Как получить ключ:' : 'How to get a key:'}</p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>{isRu ? 'Откройте ' : 'Open '}<a href="https://aistudio.google.com/apikey" target="_blank" className="text-blue-500 hover:underline">Google AI Studio</a></li>
+            <li>{isRu ? 'Нажмите "Create API Key"' : 'Click "Create API Key"'}</li>
+            <li>{isRu ? 'Скопируйте и вставьте выше' : 'Copy and paste above'}</li>
+          </ol>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderProfileContent = () => (
+    <div className="max-w-md">
+      {/* Avatar */}
+      <div className="flex justify-center mb-6">
+        <div 
+          className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer overflow-hidden relative group"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {avatar ? (
+            <img src={avatar} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-3xl font-semibold text-white">{name.charAt(0).toUpperCase()}</span>
+          )}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+            <Upload size={24} className="text-white" />
+          </div>
+        </div>
+        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+      </div>
+
+      {/* Name */}
+      <div className="mb-4">
+        <label className={`text-[13px] ${textMuted} block mb-2`}>{isRu ? 'Имя' : 'Name'}</label>
+        <input 
+          type="text" 
+          value={name} 
+          onChange={(e) => { setName(e.target.value); updateProfile({ name: e.target.value }); }}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3 ${text} text-[15px] focus:outline-none`}
+        />
+      </div>
+
+      {/* Bio */}
+      <div>
+        <label className={`text-[13px] ${textMuted} block mb-2`}>{isRu ? 'О себе' : 'About'}</label>
+        <textarea 
+          value={bio} 
+          onChange={(e) => { setBio(e.target.value); updateProfile({ bio: e.target.value }); }}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3 ${text} text-[15px] focus:outline-none min-h-[100px] resize-none`}
+          placeholder={isRu ? 'Расскажите о себе...' : 'Tell about yourself...'}
+        />
+      </div>
+
+      {/* Toggles */}
+      <div className="mt-6 space-y-2">
+        <ToggleItem 
+          icon={<Volume2 size={20} />} 
+          label={isRu ? 'Звуковые уведомления' : 'Sound Notifications'} 
+          value={settings.soundEnabled} 
+          onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} 
+        />
+        <ToggleItem 
+          icon={<Zap size={20} />} 
+          label={isRu ? 'Режим 18+' : '18+ Mode'} 
+          desc={isRu ? 'Снять ограничения контента' : 'Remove content restrictions'}
+          value={settings.adultMode} 
+          onChange={() => updateSettings({ adultMode: !settings.adultMode })} 
+        />
+        <ToggleItem 
+          icon={<Lock size={20} />} 
+          label={isRu ? 'Инкогнито' : 'Incognito'} 
+          desc={isRu ? 'Не сохранять историю' : 'Don\'t save history'}
+          value={settings.incognito} 
+          onChange={() => updateSettings({ incognito: !settings.incognito })} 
+        />
+      </div>
+    </div>
+  );
+
+  const renderPersonaContent = () => (
+    <div className="max-w-md">
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${textMuted}`} />
+        <input 
+          type="text" 
+          value={personaSearch} 
+          onChange={(e) => setPersonaSearch(e.target.value)}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl pl-12 pr-4 py-3 ${text} text-[15px] focus:outline-none`}
+          placeholder={isRu ? 'Поиск...' : 'Search...'}
+        />
+      </div>
+
+      {/* Reset */}
+      {settings.selectedPersona && (
+        <button 
+          onClick={() => { updateSettings({ selectedPersona: undefined, customSystemInstruction: '' }); setCustomPrompt(''); }}
+          className="w-full text-red-500 text-[15px] py-3 mb-4 hover:bg-red-500/10 rounded-lg transition-colors"
+        >
+          {isRu ? 'Сбросить роль' : 'Reset Role'}
+        </button>
+      )}
+
+      {/* List */}
+      <div className="space-y-1 max-h-[250px] overflow-y-auto">
+        {filteredPersonas.map(p => (
+          <button 
+            key={p.id}
+            onClick={() => selectPersona(p.id)}
+            className={`w-full flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
+              settings.selectedPersona === p.id 
+                ? (isLight ? 'bg-gray-100' : 'bg-zinc-800') 
+                : (isLight ? 'hover:bg-gray-50' : 'hover:bg-zinc-900')
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles size={18} className={textMuted} />
+              <span className={`text-[15px] ${text}`}>{isRu ? p.name.ru : p.name.en}</span>
+            </div>
+            {settings.selectedPersona === p.id && <Check size={20} className="text-blue-500" />}
+          </button>
+        ))}
+      </div>
+
+      {/* Custom Prompt */}
+      <div className="mt-6">
+        <label className={`text-[13px] ${textMuted} block mb-2`}>{isRu ? 'Свои инструкции' : 'Custom Instructions'}</label>
+        <textarea 
+          value={customPrompt} 
+          onChange={(e) => { setCustomPrompt(e.target.value); updateSettings({ customSystemInstruction: e.target.value }); }}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3 ${text} text-[15px] focus:outline-none min-h-[100px] resize-none`}
+          placeholder={isRu ? 'Опишите как AI должен себя вести...' : 'Describe how AI should behave...'}
+        />
+      </div>
+    </div>
+  );
+
+  const renderLanguageContent = () => (
+    <div className="max-w-md">
+      {/* Interface Language */}
+      <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3`}>{isRu ? 'Интерфейс' : 'Interface'}</div>
+      <div className="space-y-1 mb-6">
+        {[
+          { value: 'ru', label: 'Русский', icon: '🇷🇺' },
+          { value: 'en', label: 'English', icon: '🇺🇸' }
+        ].map(lang => (
+          <button 
+            key={lang.value}
+            onClick={() => updateSettings({ language: lang.value as InterfaceLanguage })}
+            className={`w-full flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
+              settings.language === lang.value 
+                ? (isLight ? 'bg-gray-100' : 'bg-zinc-800') 
+                : (isLight ? 'hover:bg-gray-50' : 'hover:bg-zinc-900')
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{lang.icon}</span>
+              <span className={`text-[15px] ${text}`}>{lang.label}</span>
+            </div>
+            {settings.language === lang.value && <Check size={20} className="text-blue-500" />}
+          </button>
+        ))}
+      </div>
+
+      {/* AI Response Language */}
+      <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3`}>{isRu ? 'Ответы AI' : 'AI Responses'}</div>
+      
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${textMuted}`} />
+        <input 
+          type="text" 
+          value={langSearch} 
+          onChange={(e) => setLangSearch(e.target.value)}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl pl-12 pr-4 py-3 ${text} text-[15px] focus:outline-none`}
+          placeholder={isRu ? 'Поиск языка...' : 'Search language...'}
+        />
+      </div>
+
+      <div className="space-y-1 max-h-[250px] overflow-y-auto">
+        {filteredLanguages.map(lang => (
+          <button 
+            key={lang.value}
+            onClick={() => updateSettings({ modelLanguage: lang.value })}
+            className={`w-full flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
+              settings.modelLanguage === lang.value 
+                ? (isLight ? 'bg-gray-100' : 'bg-zinc-800') 
+                : (isLight ? 'hover:bg-gray-50' : 'hover:bg-zinc-900')
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">{lang.icon}</span>
+              <span className={`text-[15px] ${text}`}>{lang.label}</span>
+            </div>
+            {settings.modelLanguage === lang.value && <Check size={20} className="text-blue-500" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderAppearanceContent = () => (
+    <div className="max-w-md">
+      <div className="space-y-1">
+        <button 
+          onClick={() => updateSettings({ theme: 'dark' })}
+          className={`w-full flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
+            settings.theme === 'dark' 
+              ? (isLight ? 'bg-gray-100' : 'bg-zinc-800') 
+              : (isLight ? 'hover:bg-gray-50' : 'hover:bg-zinc-900')
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Moon size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>{isRu ? 'Тёмная' : 'Dark'}</span>
+          </div>
+          {settings.theme === 'dark' && <Check size={20} className="text-blue-500" />}
+        </button>
+        <button 
+          onClick={() => updateSettings({ theme: 'light' })}
+          className={`w-full flex items-center justify-between py-2.5 px-3 rounded-lg transition-colors ${
+            settings.theme === 'light' 
+              ? (isLight ? 'bg-gray-100' : 'bg-zinc-800') 
+              : (isLight ? 'hover:bg-gray-50' : 'hover:bg-zinc-900')
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Sun size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>{isRu ? 'Светлая' : 'Light'}</span>
+          </div>
+          {settings.theme === 'light' && <Check size={20} className="text-blue-500" />}
+        </button>
+      </div>
+    </div>
+  );
+
+  // Mobile Layout
+  const renderMobile = () => (
     <div 
-      className={`fixed inset-0 z-[100] ${bg} animate-slide-up`}
+      className={`fixed inset-0 z-[100] ${bg} animate-slide-up flex flex-col h-full`}
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {/* Header */}
       {subPage === 'main' && (
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-4 flex-shrink-0">
           <div className="w-10" />
           <span className={`text-[17px] font-semibold ${text}`}>{t.settings}</span>
           <button onClick={onClose} className={`w-10 h-10 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'}`}>
@@ -659,8 +1105,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-8">
+      {/* Content - scrollable */}
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-8" style={{ WebkitOverflowScrolling: 'touch' }}>
         {subPage === 'main' && renderMain()}
         {subPage === 'api' && renderApi()}
         {subPage === 'profile' && renderProfile()}
@@ -670,4 +1116,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       </div>
     </div>
   );
+
+  return isDesktop ? renderDesktop() : renderMobile();
 };

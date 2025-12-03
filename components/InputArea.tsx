@@ -63,32 +63,53 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col justify-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60" />
-      <div 
-        ref={(el) => {
-          (sheetRef as any).current = el;
-          if (menuRef) (menuRef as any).current = el;
-        }}
-        className={`relative ${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-t-[20px] animate-slide-up`}
-        style={{ 
-          paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
-          transform: `translateY(${translateY}px)`,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Drag Handle */}
+    <>
+      {/* Mobile: full screen overlay */}
+      <div className="md:hidden fixed inset-0 z-[100] flex flex-col justify-end" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/60" />
         <div 
-          className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none"
-          onMouseDown={(e) => { e.preventDefault(); handleDragStart(e.clientY); }}
-          onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+          ref={(el) => {
+            (sheetRef as any).current = el;
+            if (menuRef) (menuRef as any).current = el;
+          }}
+          className={`relative ${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-t-[20px] animate-slide-up w-full`}
+          style={{ 
+            paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+            transform: `translateY(${translateY}px)`,
+            transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className={`w-9 h-1 rounded-full ${isLight ? 'bg-zinc-400' : 'bg-zinc-600'}`} />
+          {/* Drag Handle */}
+          <div 
+            className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none"
+            onMouseDown={(e) => { e.preventDefault(); handleDragStart(e.clientY); }}
+            onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+          >
+            <div className={`w-9 h-1 rounded-full ${isLight ? 'bg-zinc-400' : 'bg-zinc-600'}`} />
+          </div>
+          {children}
         </div>
-        {children}
       </div>
-    </div>
+
+      {/* Desktop: positioned above input */}
+      <div className="hidden md:block absolute bottom-full left-0 right-0 mb-2 z-[100]">
+        <div 
+          ref={(el) => {
+            if (menuRef) (menuRef as any).current = el;
+          }}
+          className={`${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-2xl animate-slide-up w-full border ${isLight ? 'border-zinc-200' : 'border-zinc-800'}`}
+          style={{ paddingBottom: '16px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top padding instead of drag handle */}
+          <div className="pt-2" />
+          {children}
+        </div>
+      </div>
+      {/* Desktop backdrop */}
+      <div className="hidden md:block fixed inset-0 z-[99]" onClick={onClose} />
+    </>
   );
 };
 
@@ -96,9 +117,10 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
 interface CloseButtonProps {
   onClick: () => void;
   isLight: boolean;
+  isBack?: boolean;
 }
 
-const CloseButton: React.FC<CloseButtonProps> = ({ onClick, isLight }) => {
+const CloseButton: React.FC<CloseButtonProps> = ({ onClick, isLight, isBack = false }) => {
   const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -111,7 +133,11 @@ const CloseButton: React.FC<CloseButtonProps> = ({ onClick, isLight }) => {
       onTouchEnd={handleClick}
       className={`w-9 h-9 flex items-center justify-center rounded-full ${isLight ? 'bg-zinc-200 active:bg-zinc-300' : 'bg-zinc-800 active:bg-zinc-700'} transition-colors z-10`}
     >
-      <ArrowDown size={20} strokeWidth={2.5} className={isLight ? 'text-zinc-700' : 'text-zinc-300'} />
+      {isBack ? (
+        <ChevronRight size={20} strokeWidth={2.5} className={`${isLight ? 'text-zinc-700' : 'text-zinc-300'} rotate-180`} />
+      ) : (
+        <ArrowDown size={20} strokeWidth={2.5} className={isLight ? 'text-zinc-700' : 'text-zinc-300'} />
+      )}
     </button>
   );
 };
@@ -502,8 +528,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
         <DraggableSheet isLight={isLight} onClose={() => setShowStyleMenu(false)} menuRef={menuRef}>
           {/* Header */}
           <div className="flex items-center px-4 pb-3">
-            <CloseButton onClick={() => { setShowStyleMenu(false); setShowAddMenu(true); }} isLight={isLight} />
-            <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-8`}>
+            <CloseButton onClick={() => { setShowStyleMenu(false); setShowAddMenu(true); }} isLight={isLight} isBack />
+            <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-9`}>
               {isRu ? 'Выбрать режим' : 'Choose style'}
             </span>
           </div>
