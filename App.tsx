@@ -8,6 +8,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { LiveVoiceModal } from './components/LiveVoiceModal';
 import { DownloadModal } from './components/DownloadModal';
 import { CodePreviewPanel, extractCodeForPreview } from './components/CodePreviewPanel';
+import { Toast, ToastType } from './components/Toast';
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
   Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ArrowDown,
@@ -39,6 +40,17 @@ const App: React.FC = () => {
   const [editingText, setEditingText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [showApiKeyAlert, setShowApiKeyAlert] = useState(false);
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: ToastType; isOpen: boolean }>({
+    message: '',
+    type: 'success',
+    isOpen: false
+  });
+  
+  const showToast = useCallback((message: string, type: ToastType = 'success') => {
+    setToast({ message, type, isOpen: true });
+  }, []);
   
   // Sound notification
   const playNotificationSound = useCallback(() => {
@@ -99,23 +111,104 @@ const App: React.FC = () => {
   }, [settings.theme]);
 
   useEffect(() => {
+    // Check for shared chat in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareParam = urlParams.get('share');
+    
+    let sharedSession: ChatSession | null = null;
+    
+    if (shareParam) {
+      try {
+        // Decode shared chat from URL
+        const jsonStr = decodeURIComponent(escape(atob(shareParam)));
+        const shareData = JSON.parse(jsonStr);
+        
+        // Create session from shared data
+        sharedSession = {
+          id: Date.now().toString(),
+          title: shareData.t || 'Shared Chat',
+          messages: (shareData.m || []).map((m: any, i: number) => ({
+            id: `shared_${i}_${Date.now()}`,
+            role: m.r === 'u' ? Role.USER : Role.MODEL,
+            text: m.x || '',
+            timestamp: Date.now() - (shareData.m.length - i) * 1000
+          })),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          persona: DEFAULT_PERSONA,
+          isShared: true
+        };
+        
+        // Clean URL without reloading
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (e) {
+        console.error('Failed to parse shared chat:', e);
+      }
+    }
+    
     const savedSessions = localStorage.getItem('neo_sessions');
     if (savedSessions) {
-      const parsed = JSON.parse(savedSessions);
-      setSessions(parsed);
-      if (parsed.length > 0) setCurrentSessionId(parsed[0].id);
+      try {
+        const parsed = JSON.parse(savedSessions);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (sharedSession) {
+            // Add shared session at the top
+            setSessions([sharedSession, ...parsed]);
+            setCurrentSessionId(sharedSession.id);
+          } else {
+            setSessions(parsed);
+            setCurrentSessionId(parsed[0].id);
+          }
+        } else {
+          // Empty or invalid array
+          const newSession = sharedSession || {
+            id: Date.now().toString(),
+            title: 'Новый чат',
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            persona: DEFAULT_PERSONA
+          };
+          setSessions([newSession]);
+          setCurrentSessionId(newSession.id);
+        }
+      } catch (e) {
+        // Parse error
+        const newSession = sharedSession || {
+          id: Date.now().toString(),
+          title: 'Новый чат',
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          persona: DEFAULT_PERSONA
+        };
+        setSessions([newSession]);
+        setCurrentSessionId(newSession.id);
+      }
     } else {
-      createSession();
+      // No saved sessions
+      const newSession = sharedSession || {
+        id: Date.now().toString(),
+        title: 'Новый чат',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        persona: DEFAULT_PERSONA
+      };
+      setSessions([newSession]);
+      setCurrentSessionId(newSession.id);
     }
+    setIsInitialized(true);
   }, []);
 
+  // Track if initial load is complete to prevent overwriting saved data
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    if (!settings.incognito) {
-        if (sessions.length > 0) {
-            localStorage.setItem('neo_sessions', JSON.stringify(sessions));
-        }
+    if (!settings.incognito && isInitialized) {
+        localStorage.setItem('neo_sessions', JSON.stringify(sessions));
     }
-  }, [sessions, settings.incognito]);
+  }, [sessions, settings.incognito, isInitialized]);
 
   useEffect(() => {
     localStorage.setItem('neo_profile', JSON.stringify(userProfile));
@@ -226,9 +319,9 @@ const App: React.FC = () => {
         if (data.sessions) setSessions(data.sessions);
         if (data.userProfile) setUserProfile(data.userProfile);
         if (data.settings) setSettings(prev => ({ ...prev, ...data.settings }));
-        alert(settings.language === 'ru' ? 'Данные успешно импортированы!' : 'Data imported successfully!');
+        showToast(settings.language === 'ru' ? 'Данные успешно импортированы!' : 'Data imported successfully!', 'success');
       } catch (err) {
-        alert(settings.language === 'ru' ? 'Ошибка импорта данных' : 'Error importing data');
+        showToast(settings.language === 'ru' ? 'Ошибка импорта данных' : 'Error importing data', 'error');
       }
     };
     reader.readAsText(file);
@@ -282,44 +375,72 @@ const App: React.FC = () => {
     setSessions(prev => prev.map(s => s.id === currentSessionId ? updatedSession : s));
   };
 
-  // Share chat (native share on mobile, copy on desktop)
+  // Share chat - create shareable link with chat data encoded in URL
   const shareChat = async () => {
     const session = getCurrentSession();
     if (!session || session.messages.length === 0) {
-      alert(settings.language === 'ru' ? 'Нечего делиться — чат пуст' : 'Nothing to share — chat is empty');
+      showToast(settings.language === 'ru' ? 'Нечего делиться — чат пуст' : 'Nothing to share — chat is empty', 'info');
       return;
     }
     
-    const text = `${session.title}\n\n` + session.messages.map(m => 
-      `${m.role === Role.USER ? '👤' : '🤖'} ${m.text}`
-    ).join('\n\n---\n\n');
+    // Create minimal share data (without attachments to keep URL short)
+    const shareData = {
+      t: session.title,
+      m: session.messages.map(m => ({
+        r: m.role === Role.USER ? 'u' : 'm',
+        x: m.text
+      }))
+    };
     
-    // Try native share API first (works on mobile)
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: session.title,
-          text: text
-        });
-        return;
-      } catch (err) {
-        // User cancelled or share failed, fall through to clipboard
-        if ((err as Error).name === 'AbortError') return;
-      }
-    }
-    
-    // Fallback to clipboard
     try {
-      await navigator.clipboard.writeText(text);
-      alert(settings.language === 'ru' ? 'Чат скопирован в буфер обмена!' : 'Chat copied to clipboard!');
-    } catch {
+      // Encode to base64
+      const jsonStr = JSON.stringify(shareData);
+      const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      
+      // Create share URL
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?share=${base64}`;
+      
+      // Check if URL is too long (most browsers support ~2000 chars)
+      if (shareUrl.length > 8000) {
+        showToast(settings.language === 'ru' 
+          ? 'Чат слишком длинный для создания ссылки' 
+          : 'Chat is too long to create a link', 'error');
+        return;
+      }
+      
+      // Try native share API first (works on mobile)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: session.title,
+            text: settings.language === 'ru' ? 'Посмотри мой чат с NEO' : 'Check out my NEO chat',
+            url: shareUrl
+          });
+          return;
+        } catch (err) {
+          if ((err as Error).name === 'AbortError') return;
+        }
+      }
+      
+      // Fallback to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+      showToast(settings.language === 'ru' 
+        ? 'Ссылка скопирована! Отправьте её другу' 
+        : 'Link copied! Send it to a friend', 'success');
+    } catch (err) {
+      // Fallback: copy as text
+      const text = `${session.title}\n\n` + session.messages.map(m => 
+        `${m.role === Role.USER ? '👤' : '🤖'} ${m.text}`
+      ).join('\n\n---\n\n');
+      
       const textarea = document.createElement('textarea');
       textarea.value = text;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      alert(settings.language === 'ru' ? 'Чат скопирован!' : 'Chat copied!');
+      showToast(settings.language === 'ru' ? 'Чат скопирован как текст!' : 'Chat copied as text!', 'success');
     }
   };
 
@@ -391,9 +512,9 @@ const App: React.FC = () => {
     
     if (supportedFiles.length === 0 && files.length > 0) {
       // Show alert if no supported files
-      alert(settings.language === 'ru' 
-        ? 'Неподдерживаемый формат файла.\n\nПоддерживаются:\n• Изображения (JPG, PNG, GIF, WebP)\n• Видео (MP4, WebM, MOV)\n• Аудио (MP3, WAV, OGG)\n• Документы (PDF)\n• Код и текст (TXT, JS, PY, JSON и др.)'
-        : 'Unsupported file format.\n\nSupported:\n• Images (JPG, PNG, GIF, WebP)\n• Video (MP4, WebM, MOV)\n• Audio (MP3, WAV, OGG)\n• Documents (PDF)\n• Code & text (TXT, JS, PY, JSON, etc.)');
+      showToast(settings.language === 'ru' 
+        ? 'Неподдерживаемый формат файла'
+        : 'Unsupported file format', 'error');
       return;
     }
     
@@ -576,9 +697,9 @@ const App: React.FC = () => {
     
     // Check API key
     if (!hasValidApiKey()) {
-      alert(settings.language === 'ru' 
+      showToast(settings.language === 'ru' 
         ? 'Добавьте API ключ в настройках' 
-        : 'Please add API key in Settings');
+        : 'Please add API key in Settings', 'error');
       setIsSettingsOpen(true);
       return;
     }
@@ -786,7 +907,11 @@ const App: React.FC = () => {
                         ${currentSessionId === session.id ? 'bg-surface-hover text-text font-medium' : 'text-text-secondary hover:bg-surface-hover hover:text-text'}
                     `}
                 >
-                    <MessageSquare size={14} className={currentSessionId === session.id ? 'text-text' : 'opacity-50'} />
+                    {session.isShared ? (
+                      <Share2 size={14} className={`${currentSessionId === session.id ? 'text-blue-400' : 'text-blue-400/50'}`} />
+                    ) : (
+                      <MessageSquare size={14} className={currentSessionId === session.id ? 'text-text' : 'opacity-50'} />
+                    )}
                     <div className="flex-1 truncate text-xs">
                         {session.title || 'Untitled'}
                     </div>
@@ -995,6 +1120,14 @@ const App: React.FC = () => {
         language={previewPanel.language}
         isLight={settings.theme === 'light'}
         lang={settings.language}
+      />
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isOpen={toast.isOpen}
+        onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
+        isLight={settings.theme === 'light'}
       />
     </div>
   );

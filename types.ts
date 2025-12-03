@@ -46,6 +46,7 @@ export interface ChatSession {
   updatedAt: number;
   persona: Persona;
   lastMode?: ChatMode;
+  isShared?: boolean; // Indicates this chat was imported from a share link
 }
 
 export interface UserProfile {
