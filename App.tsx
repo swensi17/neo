@@ -95,10 +95,10 @@ const ChatItem: React.FC<ChatItemProps> = ({ session, isSelected, isLight, onSel
     <div 
       onClick={onSelect}
       className={`
-        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all
+        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors
         ${isSelected 
           ? (isLight ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white') 
-          : (isLight ? 'text-gray-600 hover:bg-gray-100' : 'text-zinc-400 hover:bg-[#1a1a1a]')
+          : (isLight ? 'text-gray-600 active:text-gray-900' : 'text-zinc-400 active:text-white')
         }
       `}
     >
@@ -966,7 +966,7 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen bg-background text-text overflow-hidden font-sans selection:bg-accent/20 transition-colors duration-300">
+    <div className="flex bg-background text-text overflow-hidden font-sans selection:bg-accent/20 transition-colors duration-300" style={{ height: '100dvh', minHeight: '100dvh' }}>
       
       {isMobileMenuOpen && (
         <div 
@@ -1006,10 +1006,10 @@ const App: React.FC = () => {
             </div>
             <button 
                 onClick={createSession}
-                className={`p-2.5 rounded-full transition-all ${
+                className={`p-2.5 rounded-full transition-colors ${
                     settings.theme === 'light' 
-                        ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700' 
-                        : 'bg-[#1a1a1a] text-zinc-400 hover:bg-[#252525] hover:text-white'
+                        ? 'bg-gray-100 text-gray-500 active:bg-gray-200 active:text-gray-700' 
+                        : 'bg-[#1a1a1a] text-zinc-400 active:text-white'
                 }`}
                 title={t.newChat}
             >
@@ -1023,10 +1023,10 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between px-1 mb-1">
                 <button 
                     onClick={() => { haptic.light(); setIsNewProjectModalOpen(true); }}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all ${
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
                         settings.theme === 'light' 
-                            ? 'text-gray-600 hover:bg-gray-100' 
-                            : 'text-zinc-400 hover:bg-[#1a1a1a]'
+                            ? 'text-gray-600 active:text-gray-900' 
+                            : 'text-zinc-400 active:text-white'
                     }`}
                 >
                     <FolderPlus size={16} strokeWidth={1.5} />
@@ -1036,10 +1036,10 @@ const App: React.FC = () => {
                 {projects.length > 0 && (
                     <button 
                         onClick={() => setIsProjectsCollapsed(!isProjectsCollapsed)}
-                        className={`p-1.5 rounded-lg transition-all ${
+                        className={`p-1.5 rounded-lg transition-colors ${
                             settings.theme === 'light' 
-                                ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' 
-                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#1a1a1a]'
+                                ? 'text-gray-400 active:text-gray-600' 
+                                : 'text-zinc-500 active:text-zinc-300'
                         }`}
                     >
                         <ChevronLeft size={16} className={`transition-transform ${isProjectsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
@@ -1061,10 +1061,10 @@ const App: React.FC = () => {
                                     setSelectedProjectId(project.id);
                                     setIsMobileMenuOpen(false);
                                 }}
-                                className={`group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                                className={`group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                                     isSelected
                                         ? (settings.theme === 'light' ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white')
-                                        : (settings.theme === 'light' ? 'text-gray-700 hover:bg-gray-100' : 'text-zinc-300 hover:bg-[#1a1a1a]')
+                                        : (settings.theme === 'light' ? 'text-gray-700 active:text-gray-900' : 'text-zinc-300 active:text-white')
                                 }`}
                             >
                                 <IconComponent size={18} style={{ color: project.color === '#ffffff' ? undefined : project.color }} />
@@ -1157,8 +1157,8 @@ const App: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(true)} 
                     className={`md:hidden p-2 -ml-2 rounded-lg transition-colors ${
                         settings.theme === 'light' 
-                            ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' 
-                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                            ? 'text-gray-600 active:text-gray-900' 
+                            : 'text-zinc-400 active:text-white'
                     }`}
                 >
                     <Menu size={22} />
@@ -1168,8 +1168,8 @@ const App: React.FC = () => {
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
                     className={`hidden md:block p-2 rounded-lg transition-colors ${
                         settings.theme === 'light' 
-                            ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' 
-                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                            ? 'text-gray-500 active:text-gray-700' 
+                            : 'text-zinc-400 active:text-white'
                     }`}
                 >
                     {isSidebarOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
@@ -1208,8 +1208,8 @@ const App: React.FC = () => {
                     onClick={shareChat} 
                     className={`p-2.5 rounded-lg transition-colors ${
                         settings.theme === 'light' 
-                            ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' 
-                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                            ? 'text-gray-500 active:text-gray-700' 
+                            : 'text-zinc-400 active:text-white'
                     }`} 
                     title={settings.language === 'ru' ? 'Поделиться' : 'Share'}
                 >
@@ -1219,8 +1219,8 @@ const App: React.FC = () => {
                     onClick={() => setIsDownloadModalOpen(true)} 
                     className={`p-2.5 rounded-lg transition-colors ${
                         settings.theme === 'light' 
-                            ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' 
-                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                            ? 'text-gray-500 active:text-gray-700' 
+                            : 'text-zinc-400 active:text-white'
                     }`} 
                     title="Export"
                 >
@@ -1323,8 +1323,8 @@ const App: React.FC = () => {
                     onClick={scrollToBottom}
                     className={`fixed bottom-28 left-1/2 -translate-x-1/2 p-3 rounded-full shadow-xl z-20 transition-all animate-fade-in ${
                         settings.theme === 'light' 
-                            ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50' 
-                            : 'bg-[#1a1a1a] border border-zinc-800 text-white hover:bg-[#252525]'
+                            ? 'bg-white border border-gray-200 text-gray-700 active:bg-gray-100' 
+                            : 'bg-[#1a1a1a] border border-zinc-800 text-white active:bg-[#252525]'
                     }`}
                 >
                     <ArrowDown size={20} />
