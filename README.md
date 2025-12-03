@@ -1,4 +1,11 @@
-[
+<p align="center">
+  <img src="https://raw.githubusercontent.com/swensi17/neo/main/public/logo-icon.svg" alt="NEO Logo" width="120" height="120"/>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/swensi17/neo/main/public/logo-dark.svg" alt="NEO Chat" width="280"/>
+</p>
+
 <p align="center">
   <strong>🚀 AI-ассистент нового поколения на базе Google Gemini 2.5</strong>
 </p>
@@ -233,47 +240,17 @@ git push origin feature/amazing-feature
 
 ---
 
-## 📞 Контакты & Социальные сети
+## 📞 Контакты
 
 <p align="center">
   <a href="https://t.me/swensi17">
     <img src="https://img.shields.io/badge/Telegram-@swensi17-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram"/>
   </a>
-  <a href="https://github.com/swensi17">
-    <img src="https://img.shields.io/badge/GitHub-swensi17-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/>
-  </a>
-</p>
-
-<p align="center">
-  <a href="mailto:tutatutaev9@gmail.com">
-    <img src="https://img.shields.io/badge/Email-tutatutaev9@gmail.com-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Email"/>
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://twitter.com/swensi17">
-    <img src="https://img.shields.io/badge/Twitter-@swensi17-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter"/>
-  </a>
-  <a href="https://discord.gg/swensi17">
-    <img src="https://img.shields.io/badge/Discord-swensi17-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"/>
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://www.youtube.com/@swensi17">
-    <img src="https://img.shields.io/badge/YouTube-@swensi17-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube"/>
-  </a>
-  <a href="https://www.linkedin.com/in/swensi17">
-    <img src="https://img.shields.io/badge/LinkedIn-swensi17-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn"/>
-  </a>
-</p>
-
-<p align="center">
   <a href="https://www.instagram.com/swensi17">
     <img src="https://img.shields.io/badge/Instagram-@swensi17-E4405F?style=for-the-badge&logo=instagram&logoColor=white" alt="Instagram"/>
   </a>
-  <a href="https://www.tiktok.com/@swensi17">
-    <img src="https://img.shields.io/badge/TikTok-@swensi17-000000?style=for-the-badge&logo=tiktok&logoColor=white" alt="TikTok"/>
+  <a href="mailto:tutatutaev9@gmail.com">
+    <img src="https://img.shields.io/badge/Email-tutatutaev9@gmail.com-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Email"/>
   </a>
 </p>
 
@@ -298,4 +275,3 @@ git push origin feature/amazing-feature
 <p align="center">
   Made with ❤️ by <a href="https://github.com/swensi17">swensi17</a>
 </p>
-](https://raw.githubusercontent.com/swensi17/neo/main/public/logo-icon.svg)
