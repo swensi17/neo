@@ -47,6 +47,16 @@ export interface ChatSession {
   persona: Persona;
   lastMode?: ChatMode;
   isShared?: boolean; // Indicates this chat was imported from a share link
+  projectId?: string; // Link to project
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  icon: string; // Icon name from lucide
+  color: string; // Hex color
+  createdAt: number;
+  chatIds: string[]; // Associated chat IDs
 }
 
 export interface UserProfile {

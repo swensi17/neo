@@ -144,7 +144,8 @@ export const streamChatResponse = async (
   userName?: string,
   userBio?: string,
   adultMode?: boolean,
-  knowledgeBase?: string
+  knowledgeBase?: string,
+  userAvatar?: string
 ): Promise<string> => {
   const ai = getGeminiClient();
   if (!ai) {
@@ -307,6 +308,27 @@ You are in unrestricted creative writing mode. The user is an adult who has enab
   const chat = ai.chats.create({ model, config, history });
 
   const contentParts: any[] = [];
+  
+  // Check if user is asking about their avatar
+  const avatarKeywords = ['аватар', 'avatar', 'фото', 'photo', 'профил', 'profile', 'картинк', 'picture', 'изображен', 'image', 'оцени', 'rate', 'как выгляж', 'how do i look', 'моё фото', 'my photo', 'мою аватарку', 'my avatar'];
+  const isAskingAboutAvatar = avatarKeywords.some(kw => lastMessage.text?.toLowerCase().includes(kw));
+  
+  // Add user avatar if they're asking about it
+  if (isAskingAboutAvatar && userAvatar) {
+    const avatarCleaned = cleanBase64(userAvatar);
+    if (avatarCleaned) {
+      // Determine mime type from base64 header or default to jpeg
+      let mimeType = 'image/jpeg';
+      if (userAvatar.includes('data:image/png')) mimeType = 'image/png';
+      else if (userAvatar.includes('data:image/webp')) mimeType = 'image/webp';
+      else if (userAvatar.includes('data:image/gif')) mimeType = 'image/gif';
+      
+      contentParts.push({ inlineData: { mimeType, data: avatarCleaned } });
+      contentParts.push({ text: `[This is the user's profile avatar/photo. The user "${userName || 'User'}" is asking about it.]\n\n${lastMessage.text}` });
+    }
+  }
+  
+  // Add regular attachments
   lastMessage.attachments?.forEach(att => {
     const cleaned = cleanBase64(att.data);
     // Only add supported MIME types
@@ -315,13 +337,15 @@ You are in unrestricted creative writing mode. The user is an adult who has enab
     }
   });
   
-  // Add text if present
-  if (lastMessage.text?.trim()) {
+  // Add text if present (and not already added with avatar context)
+  if (lastMessage.text?.trim() && !(isAskingAboutAvatar && userAvatar)) {
     contentParts.push({ text: lastMessage.text });
-  } else if (contentParts.length > 0) {
+  } else if (contentParts.length === 0 && lastMessage.text?.trim()) {
+    contentParts.push({ text: lastMessage.text });
+  } else if (contentParts.length > 0 && !lastMessage.text?.trim()) {
     // If we have attachments but no text, add a prompt to analyze them
     contentParts.push({ text: "Analyze this file/image and describe what you see." });
-  } else {
+  } else if (contentParts.length === 0) {
     // No text and no valid attachments - show error
     onChunk(modelLanguage === 'ru' 
       ? '❌ Нет содержимого для отправки. Добавьте текст или поддерживаемый файл.'

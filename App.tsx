@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Message, ChatSession, Role, UserProfile, AppSettings, Persona, TRANSLATIONS, InterfaceLanguage, ChatMode } from './types';
+import { Message, ChatSession, Role, UserProfile, AppSettings, Persona, TRANSLATIONS, InterfaceLanguage, ChatMode, Project } from './types';
 import { streamChatResponse, generateChatTitle, stopStreaming, hasValidApiKey, compressImage } from './services/geminiService';
 import { MessageBubble } from './components/MessageBubble';
 import { InputArea } from './components/InputArea';
@@ -9,7 +9,16 @@ import { LiveVoiceModal } from './components/LiveVoiceModal';
 import { DownloadModal } from './components/DownloadModal';
 import { CodePreviewPanel, extractCodeForPreview } from './components/CodePreviewPanel';
 import { Toast, ToastType } from './components/Toast';
+import { NewProjectModal } from './components/NewProjectModal';
 import { haptic } from './utils/haptic';
+import { Briefcase, DollarSign, Smartphone, GraduationCap, Pencil, Leaf, Code, Image, Music, ShoppingBag, Scissors, Palette, Dumbbell, Snowflake, Printer, Scale, Lightbulb, Plane, Globe, Wrench, Users, FlaskConical, Heart, ShoppingCart } from 'lucide-react';
+
+// Icon mapping for projects
+const PROJECT_ICON_MAP: Record<string, React.FC<any>> = {
+  Briefcase, DollarSign, Smartphone, GraduationCap, Pencil, Leaf, Code, Image, Music, ShoppingBag, Scissors, Palette, Dumbbell, Snowflake, Printer, Scale, Lightbulb, Plane, Globe, Wrench, Users, FlaskConical, Heart, ShoppingCart
+};
+
+const getProjectIcon = (iconName: string) => PROJECT_ICON_MAP[iconName] || Briefcase;
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
   Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ArrowDown,
@@ -17,6 +26,99 @@ import {
 } from 'lucide-react';
 
 const DEFAULT_PERSONA = Persona.ASSISTANT;
+
+// Project Delete Button with double-confirm
+interface ProjectDeleteButtonProps {
+  projectId: string;
+  isLight: boolean;
+  onDelete: () => void;
+  lang: string;
+}
+
+const ProjectDeleteButton: React.FC<ProjectDeleteButtonProps> = ({ isLight, onDelete, lang }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptic.light();
+    if (confirmDelete) {
+      onDelete();
+      setConfirmDelete(false);
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  };
+
+  return (
+    <button 
+      onClick={handleClick}
+      className={`p-1 rounded transition-all md:opacity-0 md:group-hover:opacity-100 ${
+        confirmDelete 
+          ? 'text-red-500 opacity-100' 
+          : (isLight ? 'text-gray-400 hover:text-red-500' : 'text-zinc-500 hover:text-red-400')
+      }`}
+      title={confirmDelete ? (lang === 'ru' ? 'Нажмите ещё раз' : 'Click again') : (lang === 'ru' ? 'Удалить' : 'Delete')}
+    >
+      <Trash2 size={12} />
+    </button>
+  );
+};
+
+// Chat Item with double-confirm delete
+interface ChatItemProps {
+  session: ChatSession;
+  isSelected: boolean;
+  isLight: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  lang: string;
+}
+
+const ChatItem: React.FC<ChatItemProps> = ({ session, isSelected, isLight, onSelect, onDelete, lang }) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptic.light();
+    if (confirmDelete) {
+      onDelete();
+      setConfirmDelete(false);
+    } else {
+      setConfirmDelete(true);
+      // Auto-reset after 3 seconds
+      setTimeout(() => setConfirmDelete(false), 3000);
+    }
+  };
+
+  return (
+    <div 
+      onClick={onSelect}
+      className={`
+        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all
+        ${isSelected 
+          ? (isLight ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white') 
+          : (isLight ? 'text-gray-600 hover:bg-gray-100' : 'text-zinc-400 hover:bg-[#1a1a1a]')
+        }
+      `}
+    >
+      <div className="flex-1 truncate text-[13px]">
+        {session.title || 'Untitled'}
+      </div>
+      <button 
+        onClick={handleDeleteClick}
+        className={`p-1 rounded transition-all md:opacity-0 md:group-hover:opacity-100 ${
+          confirmDelete 
+            ? 'text-red-500 opacity-100' 
+            : (isLight ? 'text-gray-400 hover:text-red-500' : 'text-zinc-500 hover:text-red-400')
+        }`}
+        title={confirmDelete ? (lang === 'ru' ? 'Нажмите ещё раз' : 'Click again') : (lang === 'ru' ? 'Удалить' : 'Delete')}
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -48,6 +150,17 @@ const App: React.FC = () => {
     type: 'success',
     isOpen: false
   });
+  
+  // Projects state
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('neo_projects');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [isProjectsCollapsed, setIsProjectsCollapsed] = useState(false);
+  
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
   
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
     if (type === 'success') haptic.success();
@@ -221,6 +334,23 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('neo_settings', JSON.stringify(settings));
   }, [settings]);
+
+  // Save projects
+  useEffect(() => {
+    localStorage.setItem('neo_projects', JSON.stringify(projects));
+  }, [projects]);
+
+  // Create new project
+  const handleCreateProject = (projectData: Omit<Project, 'id' | 'createdAt' | 'chatIds'>) => {
+    const newProject: Project = {
+      ...projectData,
+      id: Date.now().toString(),
+      createdAt: Date.now(),
+      chatIds: []
+    };
+    setProjects(prev => [newProject, ...prev]);
+    showToast(settings.language === 'ru' ? 'Проект создан!' : 'Project created!', 'success');
+  };
 
   useEffect(() => {
     const container = chatContainerRef.current;
@@ -666,7 +796,8 @@ const App: React.FC = () => {
         userProfile.name,
         userProfile.bio,
         settings.adultMode,
-        knowledgeStr
+        knowledgeStr,
+        userProfile.avatar
       );
 
       setSessions(prev => {
@@ -855,59 +986,134 @@ const App: React.FC = () => {
         {/* Top bar - Search + New chat button */}
         <div className="p-3 flex items-center gap-2" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
             <div className="flex-1 relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" strokeWidth={2} />
+                <Search size={18} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-500'}`} strokeWidth={2} />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={settings.language === 'ru' ? 'Поиск' : 'Search'}
-                    className="w-full bg-transparent border border-white/20 rounded-xl pl-9 pr-3 py-2 text-sm text-text placeholder-white/40 focus:outline-none focus:border-white/30"
+                    className={`w-full rounded-full pl-11 pr-3 py-2.5 text-[15px] text-text focus:outline-none transition-colors ${
+                        settings.theme === 'light' 
+                            ? 'bg-gray-100 placeholder-gray-400 focus:bg-gray-200' 
+                            : 'bg-[#1a1a1a] placeholder-zinc-500 focus:bg-[#252525]'
+                    }`}
                 />
                 {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
-                        <X size={14} />
+                    <button onClick={() => setSearchQuery('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-400 hover:text-white'}`}>
+                        <X size={16} />
                     </button>
                 )}
             </div>
             <button 
                 onClick={createSession}
-                className="p-2 border border-white/20 rounded-xl text-white/60 hover:text-white transition-all"
+                className={`p-2.5 rounded-full transition-all ${
+                    settings.theme === 'light' 
+                        ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700' 
+                        : 'bg-[#1a1a1a] text-zinc-400 hover:bg-[#252525] hover:text-white'
+                }`}
                 title={t.newChat}
             >
                 <PenSquare size={18} strokeWidth={1.5} />
             </button>
         </div>
 
+        {/* Projects Section */}
+        <div className="px-2 pb-2">
+            {/* Header with collapse button */}
+            <div className="flex items-center justify-between px-1 mb-1">
+                <button 
+                    onClick={() => { haptic.light(); setIsNewProjectModalOpen(true); }}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all ${
+                        settings.theme === 'light' 
+                            ? 'text-gray-600 hover:bg-gray-100' 
+                            : 'text-zinc-400 hover:bg-[#1a1a1a]'
+                    }`}
+                >
+                    <FolderPlus size={16} strokeWidth={1.5} />
+                    <span className="text-[13px]">{settings.language === 'ru' ? 'Новый проект' : 'New Project'}</span>
+                </button>
+                
+                {projects.length > 0 && (
+                    <button 
+                        onClick={() => setIsProjectsCollapsed(!isProjectsCollapsed)}
+                        className={`p-1.5 rounded-lg transition-all ${
+                            settings.theme === 'light' 
+                                ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' 
+                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-[#1a1a1a]'
+                        }`}
+                    >
+                        <ChevronLeft size={16} className={`transition-transform ${isProjectsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
+                    </button>
+                )}
+            </div>
+            
+            {/* Projects List */}
+            {projects.length > 0 && !isProjectsCollapsed && (
+                <div className="space-y-0.5">
+                    {projects.map(project => {
+                        const IconComponent = getProjectIcon(project.icon);
+                        const isSelected = selectedProjectId === project.id;
+                        return (
+                            <div 
+                                key={project.id}
+                                onClick={() => { 
+                                    haptic.light(); 
+                                    setSelectedProjectId(project.id);
+                                    setIsMobileMenuOpen(false);
+                                }}
+                                className={`group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                                    isSelected
+                                        ? (settings.theme === 'light' ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white')
+                                        : (settings.theme === 'light' ? 'text-gray-700 hover:bg-gray-100' : 'text-zinc-300 hover:bg-[#1a1a1a]')
+                                }`}
+                            >
+                                <IconComponent size={18} style={{ color: project.color === '#ffffff' ? undefined : project.color }} />
+                                <span className="flex-1 text-[13px] truncate">{project.name}</span>
+                                <ProjectDeleteButton 
+                                    projectId={project.id}
+                                    isLight={settings.theme === 'light'}
+                                    onDelete={() => {
+                                        setProjects(prev => prev.filter(p => p.id !== project.id));
+                                        if (selectedProjectId === project.id) setSelectedProjectId(null);
+                                    }}
+                                    lang={settings.language}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+
         {/* Chat list */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-0.5 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto px-2 pt-1 space-y-0.5 scrollbar-hide">
             {filteredSessions.map(session => (
-                <div 
+                <ChatItem 
                     key={session.id}
-                    onClick={() => {
+                    session={session}
+                    isSelected={currentSessionId === session.id && !selectedProjectId}
+                    isLight={settings.theme === 'light'}
+                    onSelect={() => {
                         haptic.light();
                         setCurrentSessionId(session.id);
+                        setSelectedProjectId(null);
                         setIsMobileMenuOpen(false);
                     }}
-                    className={`
-                        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all
-                        ${currentSessionId === session.id ? 'bg-surface-hover text-text' : 'text-text-secondary hover:bg-surface-hover/50 hover:text-text'}
-                    `}
-                >
-                    <div className="flex-1 truncate text-[13px]">
-                        {session.title || 'Untitled'}
-                    </div>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); haptic.light(); deleteSession(session.id, e); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-text-secondary hover:text-red-400 rounded transition-all"
-                    >
-                        <Trash2 size={12} />
-                    </button>
-                </div>
+                    onDelete={() => {
+                        const newSessions = sessions.filter(s => s.id !== session.id);
+                        setSessions(newSessions);
+                        if (currentSessionId === session.id) {
+                            setCurrentSessionId(newSessions.length > 0 ? newSessions[0].id : null);
+                        }
+                        if (newSessions.length === 0) createSession();
+                    }}
+                    lang={settings.language}
+                />
             ))}
         </div>
 
         {/* Bottom - User profile + Settings */}
-        <div className="p-3 border-t border-white/5">
+        <div className={`p-3 border-t ${settings.theme === 'light' ? 'border-gray-200' : 'border-white/5'}`}>
             <div className="flex items-center gap-2">
                 <div 
                     className="flex-1 flex items-center gap-3 cursor-pointer hover:bg-surface-hover p-2 rounded-xl transition-colors"
@@ -936,30 +1142,89 @@ const App: React.FC = () => {
 
       <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 overflow-hidden ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
         
-        <header className="flex items-center justify-between px-3 z-30 bg-background border-b border-white/5 relative shrink-0" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', minHeight: 'calc(48px + env(safe-area-inset-top, 0px))' }}>
+        <header 
+            className={`flex items-center justify-between px-3 z-30 bg-background relative shrink-0 ${
+                settings.theme === 'light' ? 'border-b border-gray-200' : 'border-b border-zinc-800'
+            }`} 
+            style={{ 
+                paddingTop: 'max(12px, env(safe-area-inset-top))', 
+                minHeight: 'calc(52px + env(safe-area-inset-top, 0px))',
+                paddingBottom: '8px'
+            }}
+        >
             <div className="flex items-center gap-2">
-                <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-text-secondary hover:text-text transition-colors p-2 -ml-2">
+                <button 
+                    onClick={() => setIsMobileMenuOpen(true)} 
+                    className={`md:hidden p-2 -ml-2 rounded-lg transition-colors ${
+                        settings.theme === 'light' 
+                            ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' 
+                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                    }`}
+                >
                     <Menu size={22} />
                 </button>
                 
                 <button 
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-                    className="hidden md:block text-text-secondary hover:text-text transition-colors p-2 rounded-lg hover:bg-surface-hover"
+                    className={`hidden md:block p-2 rounded-lg transition-colors ${
+                        settings.theme === 'light' 
+                            ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' 
+                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                    }`}
                 >
                     {isSidebarOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
                 </button>
 
-                <span className="font-medium text-sm text-text truncate max-w-[180px] md:max-w-xs">
-                    {currentSession?.title || 'NEO'}
-                </span>
+                {selectedProject ? (
+                    <div className="flex items-center gap-2">
+                        {(() => {
+                            const IconComponent = getProjectIcon(selectedProject.icon);
+                            return (
+                                <div 
+                                    className="w-7 h-7 rounded-full flex items-center justify-center"
+                                    style={{ backgroundColor: selectedProject.color === '#ffffff' ? '#1a1a1a' : selectedProject.color + '20' }}
+                                >
+                                    <IconComponent size={16} style={{ color: selectedProject.color === '#ffffff' ? '#a1a1aa' : selectedProject.color }} />
+                                </div>
+                            );
+                        })()}
+                        <span className={`font-medium text-sm truncate max-w-[180px] md:max-w-xs ${
+                            settings.theme === 'light' ? 'text-gray-900' : 'text-white'
+                        }`}>
+                            {selectedProject.name}
+                        </span>
+                    </div>
+                ) : (
+                    <span className={`font-medium text-sm truncate max-w-[180px] md:max-w-xs ${
+                        settings.theme === 'light' ? 'text-gray-900' : 'text-white'
+                    }`}>
+                        {currentSession?.title || 'NEO'}
+                    </span>
+                )}
             </div>
             
             <div className="flex items-center gap-1">
-                <button onClick={shareChat} className="text-text-secondary hover:text-text transition-colors p-2 rounded-lg hover:bg-surface-hover" title={settings.language === 'ru' ? 'Поделиться' : 'Share'}>
-                    <Share2 size={18} />
+                <button 
+                    onClick={shareChat} 
+                    className={`p-2.5 rounded-lg transition-colors ${
+                        settings.theme === 'light' 
+                            ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' 
+                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                    }`} 
+                    title={settings.language === 'ru' ? 'Поделиться' : 'Share'}
+                >
+                    <Share2 size={20} />
                 </button>
-                <button onClick={() => setIsDownloadModalOpen(true)} className="text-text-secondary hover:text-text transition-colors p-2 rounded-lg hover:bg-surface-hover" title="Export">
-                    <Download size={18} />
+                <button 
+                    onClick={() => setIsDownloadModalOpen(true)} 
+                    className={`p-2.5 rounded-lg transition-colors ${
+                        settings.theme === 'light' 
+                            ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' 
+                            : 'text-zinc-400 hover:text-white hover:bg-[#1a1a1a]'
+                    }`} 
+                    title="Export"
+                >
+                    <Download size={20} />
                 </button>
             </div>
         </header>
@@ -977,6 +1242,20 @@ const App: React.FC = () => {
             </div>
         )}
 
+        {/* Project View */}
+        {selectedProject ? (
+            <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col items-center justify-center">
+                {/* Empty State */}
+                <div className="text-center px-4">
+                    <MessageSquare size={32} className="text-zinc-500 mb-4 mx-auto" />
+                    <p className={`text-[15px] whitespace-pre-line ${settings.theme === 'light' ? 'text-gray-600' : 'text-zinc-400'}`}>
+                        {settings.language === 'ru' 
+                            ? 'Чаты в этом проекте\nбудут видны здесь.' 
+                            : 'Chats in this project\nwill appear here.'}
+                    </p>
+                </div>
+            </div>
+        ) : (
         <div 
             ref={chatContainerRef} 
             className="flex-1 overflow-y-auto scrollbar-hide pb-4 relative"
@@ -1045,13 +1324,14 @@ const App: React.FC = () => {
                     className={`fixed bottom-28 left-1/2 -translate-x-1/2 p-3 rounded-full shadow-xl z-20 transition-all animate-fade-in ${
                         settings.theme === 'light' 
                             ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50' 
-                            : 'bg-zinc-900 border border-white/10 text-white hover:bg-zinc-800'
+                            : 'bg-[#1a1a1a] border border-zinc-800 text-white hover:bg-[#252525]'
                     }`}
                 >
                     <ArrowDown size={20} />
                 </button>
             )}
         </div>
+        )}
 
         <div className="w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-2 z-20 px-2 md:px-0 transition-colors duration-300" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <InputArea 
@@ -1061,7 +1341,7 @@ const App: React.FC = () => {
                 onInputFocus={scrollToBottom}
                 isStreaming={isStreaming}
                 language={settings.language}
-                placeholderText={t.messagePlaceholder}
+                placeholderText={selectedProject ? `${settings.language === 'ru' ? 'Сообщение' : 'Message'} ${selectedProject.name}` : t.messagePlaceholder}
                 isLight={settings.theme === 'light'}
                 fileInputRef={fileInputRef}
             />
@@ -1113,6 +1393,14 @@ const App: React.FC = () => {
         type={toast.type}
         isOpen={toast.isOpen}
         onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
+        isLight={settings.theme === 'light'}
+      />
+
+      <NewProjectModal
+        isOpen={isNewProjectModalOpen}
+        onClose={() => setIsNewProjectModalOpen(false)}
+        onCreateProject={handleCreateProject}
+        isRu={settings.language === 'ru'}
         isLight={settings.theme === 'light'}
       />
     </div>

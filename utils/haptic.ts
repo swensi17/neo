@@ -15,6 +15,13 @@ export const haptic = {
     }
   },
   
+  // Heavy tap - for voice recording start/stop
+  heavy: () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  },
+  
   // Success - for completed actions
   success: () => {
     if ('vibrate' in navigator) {

@@ -27,6 +27,23 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Remove focus outline on all buttons */
+button:focus,
+button:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove tap highlight on mobile */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
 /* iOS Safe Areas for PWA */
 #root {
   height: 100%;

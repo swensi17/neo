@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChatMode } from '../types';
-import { Sparkles, BookOpen, FlaskConical, Search, Globe, FileText, Brain, Zap } from 'lucide-react';
+import { Sparkles, BookOpen, Search, Globe, FileText, Brain, Zap } from 'lucide-react';
 
 interface ThinkingIndicatorProps {
   mode: ChatMode;
@@ -9,28 +9,40 @@ interface ThinkingIndicatorProps {
   sourcesCount?: number;
 }
 
-// Animated logo component
-const AnimatedLogo = ({ isLight }: { isLight: boolean }) => (
-  <div className="relative w-10 h-10">
-    <svg viewBox="0 0 40 40" className="w-full h-full animate-spin-slow">
-      <defs>
-        <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={isLight ? '#374151' : '#ffffff'} stopOpacity="0.8" />
-          <stop offset="100%" stopColor={isLight ? '#6b7280' : '#a1a1aa'} stopOpacity="0.3" />
-        </linearGradient>
-      </defs>
-      {/* Orbital rings */}
-      <ellipse cx="20" cy="20" rx="16" ry="6" fill="none" stroke="url(#gradient1)" strokeWidth="1.5" 
-        className="animate-pulse" style={{ transformOrigin: 'center', transform: 'rotate(-30deg)' }} />
-      <ellipse cx="20" cy="20" rx="16" ry="6" fill="none" stroke="url(#gradient1)" strokeWidth="1.5" 
-        className="animate-pulse" style={{ transformOrigin: 'center', transform: 'rotate(30deg)', animationDelay: '0.2s' }} />
-      <ellipse cx="20" cy="20" rx="16" ry="6" fill="none" stroke="url(#gradient1)" strokeWidth="1.5" 
-        className="animate-pulse" style={{ transformOrigin: 'center', transform: 'rotate(90deg)', animationDelay: '0.4s' }} />
-      {/* Center dot */}
-      <circle cx="20" cy="20" r="3" fill={isLight ? '#374151' : '#ffffff'} className="animate-pulse" />
-    </svg>
-  </div>
-);
+// Animated atom/orbital logo component - like the image
+const AnimatedLogo = ({ isLight }: { isLight: boolean }) => {
+  const strokeColor = isLight ? '#374151' : '#71717a';
+  const dotColor = isLight ? '#374151' : '#a1a1aa';
+  
+  return (
+    <div className="relative w-12 h-12 flex-shrink-0">
+      <svg viewBox="0 0 48 48" className="w-full h-full">
+        {/* Orbital rings with animation */}
+        <g className="animate-spin-slow" style={{ transformOrigin: 'center' }}>
+          <ellipse cx="24" cy="24" rx="18" ry="7" fill="none" stroke={strokeColor} strokeWidth="1.5" 
+            style={{ transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
+        </g>
+        <g className="animate-spin-slow" style={{ transformOrigin: 'center', animationDirection: 'reverse', animationDuration: '12s' }}>
+          <ellipse cx="24" cy="24" rx="18" ry="7" fill="none" stroke={strokeColor} strokeWidth="1.5" 
+            style={{ transform: 'rotate(45deg)', transformOrigin: 'center' }} />
+        </g>
+        <g className="animate-spin-slow" style={{ transformOrigin: 'center', animationDuration: '10s' }}>
+          <ellipse cx="24" cy="24" rx="18" ry="7" fill="none" stroke={strokeColor} strokeWidth="1.5" 
+            style={{ transform: 'rotate(0deg)', transformOrigin: 'center' }} />
+        </g>
+        {/* Center pulsing dot */}
+        <circle cx="24" cy="24" r="3" fill={dotColor} className="animate-pulse" />
+        {/* Orbiting dots */}
+        <g className="animate-spin-slow" style={{ transformOrigin: 'center' }}>
+          <circle cx="42" cy="24" r="2" fill={dotColor} className="animate-pulse" />
+        </g>
+        <g className="animate-spin-slow" style={{ transformOrigin: 'center', animationDirection: 'reverse' }}>
+          <circle cx="6" cy="24" r="2" fill={dotColor} className="animate-pulse" style={{ animationDelay: '0.5s' }} />
+        </g>
+      </svg>
+    </div>
+  );
+};
 
 // Progress stages for different modes
 const getThinkingStages = (mode: ChatMode, lang: string) => {
@@ -106,14 +118,10 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
   }, [mode, stages.length]);
   
   const currentStage = stages[stageIndex];
-  const Icon = currentStage.icon;
   const isRu = lang === 'ru';
   
   // Theme classes
-  const textMain = isLight ? 'text-gray-800' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-white/50';
-  const bgSurface = isLight ? 'bg-gray-100' : 'bg-zinc-900';
-  const border = isLight ? 'border-gray-200' : 'border-white/10';
 
   // Standard mode - simple indicator
   if (mode === ChatMode.STANDARD) {
@@ -130,25 +138,22 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
     );
   }
 
-  // Labs and Research - full thinking UI
+  // Labs and Research - full thinking UI (like the image with "Активен...")
   return (
-    <div className="py-6">
-      <div className="flex items-start gap-4">
+    <div className="py-4">
+      <div className="flex items-center gap-4">
         {/* Animated Logo */}
         <AnimatedLogo isLight={isLight} />
         
-        {/* Status Text */}
+        {/* Status Text - Large italic style like the image */}
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Icon size={16} className={`${textMain} animate-pulse`} />
-            <span className={`text-lg font-medium ${textMain} tracking-wide`}>
-              {currentStage.text.replace('...', '')}{dots}
-            </span>
-          </div>
+          <span className={`text-xl font-light italic tracking-wide ${textSecondary}`} style={{ fontFamily: 'Georgia, serif' }}>
+            {currentStage.text.replace('...', '')}{dots}
+          </span>
           
           {/* Progress info for Research mode */}
           {mode === ChatMode.RESEARCH && sourcesCount > 0 && (
-            <div className={`text-sm ${textSecondary} flex items-center gap-2`}>
+            <div className={`text-sm ${textSecondary} flex items-center gap-2 mt-2`}>
               <Globe size={12} />
               <span>
                 {isRu 
@@ -157,25 +162,6 @@ export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
               </span>
             </div>
           )}
-          
-          {/* Mode badge */}
-          <div className={`inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full ${bgSurface} border ${border}`}>
-            {mode === ChatMode.LABS ? (
-              <>
-                <FlaskConical size={12} className={textSecondary} />
-                <span className={`text-xs font-medium ${textSecondary}`}>
-                  {isRu ? 'Лаборатория' : 'Labs'}
-                </span>
-              </>
-            ) : (
-              <>
-                <BookOpen size={12} className={textSecondary} />
-                <span className={`text-xs font-medium ${textSecondary}`}>
-                  {isRu ? 'Исследование' : 'Research'}
-                </span>
-              </>
-            )}
-          </div>
         </div>
       </div>
     </div>
