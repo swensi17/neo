@@ -370,6 +370,56 @@ const CodeCopyButton = ({ code, codeId, lang = 'en' }: { code: string, codeId: n
 const HighlightText: React.FC<{ text: string; highlight?: string; isLight?: boolean }> = ({ text, highlight, isLight }) => {
   if (!highlight || !highlight.trim()) return <>{text}</>;
   
+  try {
+    const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, (m) => '\\' + m);
+    const regex = new RegExp('(' + escapedHighlight + ')', 'gi');
+    const parts = text.split(regex);
+    
+    return (
+      <>
+        {parts.map((part, i) => 
+          part.toLowerCase() === highlight.toLowerCase() ? (
+            <mark 
+              key={i} 
+              className="bg-amber-500/30 text-inherit rounded px-0.5"
+              style={{ boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)' }}
+            >
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  } catch {
+    return <>{text}</>;
+  }
+};
+
+// Recursive helper to highlight text in React children  
+const highlightChildren = (children: React.ReactNode, highlight?: string, isLight?: boolean): React.ReactNode => {
+  if (!highlight || !highlight.trim()) return children;
+  
+  return React.Children.map(children, (child) => {
+    if (typeof child === 'string') {
+      return <HighlightText text={child} highlight={highlight} isLight={isLight} />;
+    }
+    if (typeof child === 'number') {
+      return <HighlightText text={String(child)} highlight={highlight} isLight={isLight} />;
+    }
+    if (React.isValidElement(child) && child.props.children) {
+      return React.cloneElement(child as React.ReactElement<any>, {
+        children: highlightChildren(child.props.children, highlight, isLight)
+      });
+    }
+    return child;
+  });
+};
+
+// highlightChildren is defined above - removing duplicate code below
+/* REMOVE_START
+  
   const parts = text.split(new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
   
   return (
@@ -388,8 +438,7 @@ const HighlightText: React.FC<{ text: string; highlight?: string; isLight?: bool
         )
       )}
     </>
-  );
-};
+REMOVE_END */
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message, 
@@ -815,10 +864,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                       </code>
                     )
                   },
-                  h1: ({node, ...props}) => <h1 {...props} className="text-xl font-bold text-text mt-8 mb-4 first:mt-0 tracking-tight" />,
-                  h2: ({node, ...props}) => <h2 {...props} className="text-lg font-bold text-text mt-6 mb-3 tracking-tight" />,
-                  h3: ({node, ...props}) => <h3 {...props} className="text-base font-semibold text-text mt-5 mb-2" />,
-                  p: ({node, ...props}) => <p {...props} className="text-text-secondary mb-4 last:mb-0 leading-7 text-sm sm:text-[15px]" />,
+                  h1: ({node, children, ...props}) => <h1 {...props} className="text-xl font-bold text-text mt-8 mb-4 first:mt-0 tracking-tight">{highlightChildren(children, searchHighlight, isLight)}</h1>,
+                  h2: ({node, children, ...props}) => <h2 {...props} className="text-lg font-bold text-text mt-6 mb-3 tracking-tight">{highlightChildren(children, searchHighlight, isLight)}</h2>,
+                  h3: ({node, children, ...props}) => <h3 {...props} className="text-base font-semibold text-text mt-5 mb-2">{highlightChildren(children, searchHighlight, isLight)}</h3>,
+                  p: ({node, children, ...props}) => <p {...props} className="text-text-secondary mb-4 last:mb-0 leading-7 text-sm sm:text-[15px]">{highlightChildren(children, searchHighlight, isLight)}</p>,
+                  li: ({node, children, ...props}) => <li {...props}>{highlightChildren(children, searchHighlight, isLight)}</li>,
                   ul: ({node, ...props}) => <ul {...props} className="list-disc pl-5 my-4 space-y-1 text-text-secondary marker:text-text-secondary text-sm sm:text-[15px]" />,
                   ol: ({node, ...props}) => <ol {...props} className="list-decimal pl-5 my-4 space-y-1 text-text-secondary marker:text-text-secondary text-sm sm:text-[15px]" />,
                   
@@ -835,15 +885,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                       const contentText = getCleanText(props.children);
                       return <BlockquoteBox contentText={contentText} isLight={isLight} lang={lang} />;
                   },
-                  a: ({node, ...props}) => (
+                  a: ({node, children, ...props}) => (
                       <a {...props} className="text-blue-400 hover:underline font-medium inline-flex items-center gap-0.5" target="_blank" rel="noopener noreferrer">
-                          {props.children} <ExternalLink size={10} className="opacity-70"/>
+                          {highlightChildren(children, searchHighlight, isLight)} <ExternalLink size={10} className="opacity-70"/>
                       </a>
                   ),
                   table: ({node, ...props}) => <div className="overflow-x-auto my-6 border border-white/10 rounded-lg"><table {...props} className="w-full text-left text-sm" /></div>,
                   thead: ({node, ...props}) => <thead {...props} className="bg-surface text-text border-b border-white/10" />,
-                  th: ({node, ...props}) => <th {...props} className="px-4 py-3 font-semibold whitespace-nowrap" />,
-                  td: ({node, ...props}) => <td {...props} className="px-4 py-3 border-t border-white/5 text-text-secondary" />,
+                  th: ({node, children, ...props}) => <th {...props} className="px-4 py-3 font-semibold whitespace-nowrap">{highlightChildren(children, searchHighlight, isLight)}</th>,
+                  td: ({node, children, ...props}) => <td {...props} className="px-4 py-3 border-t border-white/5 text-text-secondary">{highlightChildren(children, searchHighlight, isLight)}</td>,
                   hr: ({node, ...props}) => <hr {...props} className="my-8 border-white/5" />,
                   text: ({node, ...props}: any) => {
                     const textContent = String(props.children || node?.value || '');

@@ -800,7 +800,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className={`border-t ${divider} ml-12`} />
         
         <a 
-          href="https://instagram.com/swensi17" 
+          href="https://instagram.com/swensi.17" 
           target="_blank" 
           rel="noopener noreferrer"
           className={`flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
@@ -1280,7 +1280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </a>
         
         <a 
-          href="https://instagram.com/swensi17" 
+          href="https://instagram.com/swensi.17" 
           target="_blank" 
           rel="noopener noreferrer"
           className={`flex items-center justify-between py-3 px-3 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]'}`}
