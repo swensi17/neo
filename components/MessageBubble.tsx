@@ -6,6 +6,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message, Role, UserProfile, ChatMode, TRANSLATIONS } from '../types';
 import { Copy, RefreshCw, Volume2, Check, Sparkles, ThumbsUp, ThumbsDown, Square, BookOpen, FlaskConical, ChevronLeft, ChevronRight, Link as LinkIcon, ExternalLink, Play, FileCode, FileText, Image as ImageIcon, Download, Edit2, X, Trash2 } from 'lucide-react';
+import { ThinkingIndicator } from './ThinkingIndicator';
 
 interface MessageBubbleProps {
   message: Message;
@@ -623,8 +624,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   hr: ({node, ...props}) => <hr {...props} className="my-8 border-white/5" />,
                 }}
               >
-                {displayText + (message.isThinking ? ' ●' : '')}
+                {displayText}
               </ReactMarkdown>
+              {message.isThinking && !displayText && (
+                <ThinkingIndicator 
+                  mode={message.mode || ChatMode.STANDARD} 
+                  lang={lang} 
+                  isLight={isLight}
+                  sourcesCount={message.groundingUrls?.length || 0}
+                />
+              )}
             </div>
           )}
         </div>

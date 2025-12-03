@@ -180,9 +180,22 @@ export const streamChatResponse = async (
 
   // Add mode-specific instructions
   if (mode === ChatMode.RESEARCH) {
-    systemInstruction += "\n\nMODE: DEEP RESEARCH. Provide comprehensive reports with citations. Use tables and Mermaid diagrams for data visualization.";
+    systemInstruction += `\n\nMODE: DEEP RESEARCH
+- Provide comprehensive, well-researched reports
+- Include citations and references to sources
+- Use tables and Mermaid diagrams for data visualization
+- Structure with clear sections: Overview, Analysis, Key Findings, Conclusion
+- Aim for thorough coverage of the topic
+- Always use balanced response length regardless of user settings`;
   } else if (mode === ChatMode.LABS) {
-    systemInstruction += "\n\nMODE: LABS. Create concrete outputs (Code, Docs, Diagrams). Full HTML/CSS/JS in single blocks. Use Mermaid for diagrams.";
+    systemInstruction += `\n\nMODE: LABS (Laboratory)
+- Create concrete, production-ready outputs
+- Full HTML/CSS/JS in single code blocks when creating web content
+- Use Mermaid for diagrams and flowcharts
+- Provide complete, working solutions
+- Include detailed comments in code
+- Think deeply before responding - quality over speed
+- Always use balanced response length regardless of user settings`;
   } else {
     systemInstruction += "\n\nMODE: STANDARD.";
     if (responseLength === 'brief') systemInstruction += " Be BRIEF (2-3 sentences max).";

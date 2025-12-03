@@ -89,7 +89,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const handleSend = () => {
     if ((!text.trim() && attachments.length === 0) || isStreaming) return;
     haptic.medium();
-    onSend(text, attachments, useWebSearch, currentMode, responseLength);
+    // For Research and Labs modes, always use balanced response length
+    const effectiveResponseLength = (currentMode === ChatMode.RESEARCH || currentMode === ChatMode.LABS) 
+      ? 'balanced' 
+      : responseLength;
+    // For Research mode, always enable web search
+    const effectiveWebSearch = currentMode === ChatMode.RESEARCH ? true : useWebSearch;
+    onSend(text, attachments, effectiveWebSearch, currentMode, effectiveResponseLength);
     setText(''); setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
@@ -205,18 +211,24 @@ export const InputArea: React.FC<InputAreaProps> = ({
       
       {/* Mode Menu */}
       {showModeMenu && (
-        <div ref={modeMenuRef} className={`absolute bottom-full mb-2 left-2 z-50 ${bgMain} border ${border} rounded-xl shadow-2xl p-1 w-[200px] animate-slide-up`}>
+        <div ref={modeMenuRef} className={`absolute bottom-full mb-2 left-2 z-50 ${bgMain} border ${border} rounded-xl shadow-2xl p-1.5 w-[260px] animate-slide-up`}>
           {[
-            { m: ChatMode.STANDARD, icon: <Zap size={14} />, label: t.modeStandard },
-            { m: ChatMode.RESEARCH, icon: <BookOpen size={14} />, label: t.modeResearch },
-            { m: ChatMode.LABS, icon: <FlaskConical size={14} />, label: t.modeLabs }
+            { m: ChatMode.STANDARD, icon: <Zap size={14} />, label: t.modeStandard, desc: language === 'ru' ? 'Быстрые ответы' : 'Quick responses' },
+            { m: ChatMode.RESEARCH, icon: <BookOpen size={14} />, label: t.modeResearch, desc: t.researchDesc },
+            { m: ChatMode.LABS, icon: <FlaskConical size={14} />, label: t.modeLabs, desc: t.labsDesc }
           ].map((item) => (
             <button
               key={item.m}
               onClick={() => { haptic.light(); setCurrentMode(item.m); setShowModeMenu(false); if (item.m === ChatMode.RESEARCH) setUseWebSearch(true); }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${currentMode === item.m ? `${activeBg} ${textMain}` : `${textSecondary} ${hoverBg}`}`}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all ${currentMode === item.m ? `${activeBg} ${textMain}` : `${textSecondary} ${hoverBg}`}`}
             >
-              <div className="flex items-center gap-2">{item.icon}<span>{item.label}</span></div>
+              <div className="flex flex-col items-start gap-0.5">
+                <div className="flex items-center gap-2">
+                  {item.icon}
+                  <span className="font-medium">{item.label}</span>
+                </div>
+                <span className={`text-[10px] ${textSecondary} ml-5`}>{item.desc}</span>
+              </div>
               {currentMode === item.m && <Check size={12} />}
             </button>
           ))}
@@ -268,32 +280,39 @@ export const InputArea: React.FC<InputAreaProps> = ({
           <ChevronDown size={10} />
         </button>
 
-        {/* Search Toggle */}
+        {/* Search Toggle - Always enabled for Research mode */}
         <button
-          onClick={() => setUseWebSearch(!useWebSearch)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all flex-shrink-0 ${useWebSearch ? 'bg-blue-500/20 border-blue-500/30 text-blue-500' : `${bgSurface} ${border} ${textSecondary}`}`}
+          onClick={() => currentMode !== ChatMode.RESEARCH && setUseWebSearch(!useWebSearch)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all flex-shrink-0 ${
+            currentMode === ChatMode.RESEARCH || useWebSearch 
+              ? 'bg-blue-500/20 border-blue-500/30 text-blue-500' 
+              : `${bgSurface} ${border} ${textSecondary}`
+          } ${currentMode === ChatMode.RESEARCH ? 'cursor-default' : ''}`}
+          title={currentMode === ChatMode.RESEARCH ? (language === 'ru' ? 'Поиск всегда включён в режиме Исследования' : 'Search always enabled in Research mode') : ''}
         >
           <Search size={12} />
           <span>{language === 'ru' ? 'Поиск' : 'Search'}</span>
         </button>
 
-        {/* Response Length - Full labels */}
-        <button
-          onClick={() => {
-            const lengths: Array<'brief' | 'balanced' | 'detailed'> = ['brief', 'balanced', 'detailed'];
-            setResponseLength(lengths[(lengths.indexOf(responseLength) + 1) % 3]);
-          }}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium ${bgSurface} border ${border} ${textSecondary} transition-all flex-shrink-0`}
-        >
-          {responseLength === 'brief' && <AlignLeft size={12} />}
-          {responseLength === 'balanced' && <AlignCenter size={12} />}
-          {responseLength === 'detailed' && <AlignJustify size={12} />}
-          <span>
-            {responseLength === 'brief' && t.brief}
-            {responseLength === 'balanced' && t.balanced}
-            {responseLength === 'detailed' && t.detailed}
-          </span>
-        </button>
+        {/* Response Length - Only show in Standard mode */}
+        {currentMode === ChatMode.STANDARD && (
+          <button
+            onClick={() => {
+              const lengths: Array<'brief' | 'balanced' | 'detailed'> = ['brief', 'balanced', 'detailed'];
+              setResponseLength(lengths[(lengths.indexOf(responseLength) + 1) % 3]);
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium ${bgSurface} border ${border} ${textSecondary} transition-all flex-shrink-0`}
+          >
+            {responseLength === 'brief' && <AlignLeft size={12} />}
+            {responseLength === 'balanced' && <AlignCenter size={12} />}
+            {responseLength === 'detailed' && <AlignJustify size={12} />}
+            <span>
+              {responseLength === 'brief' && t.brief}
+              {responseLength === 'balanced' && t.balanced}
+              {responseLength === 'detailed' && t.detailed}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Input */}

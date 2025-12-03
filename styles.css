@@ -183,3 +183,13 @@ iframe { border: none; }
 .animate-fade-in {
   animation: fade-in 0.2s ease-out forwards;
 }
+
+/* Slow spin for thinking indicator */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
