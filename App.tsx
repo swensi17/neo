@@ -235,12 +235,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isStreaming) {
-        const container = chatContainerRef.current;
-        if (container) {
-            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-            if (isNearBottom) scrollToBottom();
-        }
-    } else {
+        // Всегда скроллить вниз при стриминге
+        scrollToBottom();
+    } else if (!isStreaming) {
         scrollToBottom();
     }
   }, [currentSessionId, sessions, isStreaming]);
