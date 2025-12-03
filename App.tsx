@@ -22,7 +22,7 @@ const getProjectIcon = (iconName: string) => PROJECT_ICON_MAP[iconName] || Brief
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
   Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ArrowDown,
-  Search, Upload, X, PenSquare, Share2, FolderPlus, Tag
+  Search, Upload, X, PenSquare, Share2, FolderPlus, Tag, MoreVertical, Edit3
 } from 'lucide-react';
 
 const DEFAULT_PERSONA = Persona.ASSISTANT;
@@ -179,6 +179,7 @@ const App: React.FC = () => {
   const [settingsInitialPage, setSettingsInitialPage] = useState<'main' | 'api' | 'profile' | 'persona' | 'language' | 'appearance' | 'data' | 'sound' | undefined>(undefined);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isLiveModeOpen, setIsLiveModeOpen] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [previewPanel, setPreviewPanel] = useState<{ isOpen: boolean; code: string; language: string }>({
@@ -1410,9 +1411,10 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-1">
+                {/* Desktop: show buttons */}
                 <button 
                     onClick={shareChat} 
-                    className={`p-2.5 rounded-lg transition-colors ${
+                    className={`hidden md:block p-2.5 rounded-lg transition-colors ${
                         settings.theme === 'light' 
                             ? 'text-gray-500 active:text-gray-700' 
                             : 'text-zinc-400 active:text-white'
@@ -1423,7 +1425,7 @@ const App: React.FC = () => {
                 </button>
                 <button 
                     onClick={() => setIsDownloadModalOpen(true)} 
-                    className={`p-2.5 rounded-lg transition-colors ${
+                    className={`hidden md:block p-2.5 rounded-lg transition-colors ${
                         settings.theme === 'light' 
                             ? 'text-gray-500 active:text-gray-700' 
                             : 'text-zinc-400 active:text-white'
@@ -1432,6 +1434,85 @@ const App: React.FC = () => {
                 >
                     <Download size={20} />
                 </button>
+                
+                {/* Mobile: three dots menu */}
+                <div className="relative md:hidden">
+                    <button 
+                        onClick={() => setShowChatMenu(!showChatMenu)} 
+                        className={`p-2.5 rounded-lg transition-colors ${
+                            settings.theme === 'light' 
+                                ? 'text-gray-500 active:text-gray-700' 
+                                : 'text-zinc-400 active:text-white'
+                        }`}
+                    >
+                        <MoreVertical size={20} />
+                    </button>
+                    
+                    {/* Dropdown menu */}
+                    {showChatMenu && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
+                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl shadow-xl z-50 overflow-hidden animate-dropdown ${
+                                settings.theme === 'light' ? 'bg-white border border-gray-200' : 'bg-[#000000] border border-zinc-800'
+                            }`}>
+                                <button
+                                    onClick={() => { shareChat(); setShowChatMenu(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800'
+                                    }`}
+                                >
+                                    <Share2 size={18} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'} />
+                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Поделиться' : 'Share'}</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const newTitle = prompt(settings.language === 'ru' ? 'Новое название:' : 'New title:', currentSession?.title || '');
+                                        if (newTitle && currentSessionId) {
+                                            setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: newTitle } : s));
+                                        }
+                                        setShowChatMenu(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800'
+                                    }`}
+                                >
+                                    <Edit3 size={18} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'} />
+                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Переименовать' : 'Rename'}</span>
+                                </button>
+                                <button
+                                    onClick={() => { setIsDownloadModalOpen(true); setShowChatMenu(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800'
+                                    }`}
+                                >
+                                    <Download size={18} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'} />
+                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Экспорт' : 'Export'}</span>
+                                </button>
+                                <div className={`border-t ${settings.theme === 'light' ? 'border-gray-100' : 'border-zinc-800'}`} />
+                                <button
+                                    onClick={() => {
+                                        if (currentSessionId && confirm(settings.language === 'ru' ? 'Удалить этот чат?' : 'Delete this chat?')) {
+                                            const newSessions = sessions.filter(s => s.id !== currentSessionId);
+                                            setSessions(newSessions);
+                                            if (newSessions.length > 0) {
+                                                setCurrentSessionId(newSessions[0].id);
+                                            } else {
+                                                createSession();
+                                            }
+                                        }
+                                        setShowChatMenu(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors text-red-500 ${
+                                        settings.theme === 'light' ? 'active:bg-red-50' : 'active:bg-red-500/10'
+                                    }`}
+                                >
+                                    <Trash2 size={18} />
+                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Удалить' : 'Delete'}</span>
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </header>
 
@@ -1456,7 +1537,7 @@ const App: React.FC = () => {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
-            <div className="max-w-3xl mx-auto px-4">
+            <div className="max-w-3xl mx-auto px-4 pt-4">
                 {currentSession && currentSession.messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
                         <h2 className="text-xl md:text-2xl font-semibold mb-2 text-text tracking-tight">
@@ -1532,6 +1613,11 @@ const App: React.FC = () => {
                 placeholderText={selectedProject ? `${settings.language === 'ru' ? 'Сообщение' : 'Message'} ${selectedProject.name}` : t.messagePlaceholder}
                 isLight={settings.theme === 'light'}
                 fileInputRef={fileInputRef}
+                editingMessageId={editingMessageId}
+                editingText={editingText}
+                onEditingTextChange={setEditingText}
+                onSaveEdit={() => { if (editingMessageId) handleEditMessage(editingMessageId, editingText); }}
+                onCancelEdit={() => { setEditingMessageId(null); setEditingText(''); }}
             />
         </div>
 

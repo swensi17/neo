@@ -419,33 +419,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
 
           {isUser ? (
-            isEditing ? (
-              <div className="w-full">
-                <textarea
-                  value={editingText}
-                  onChange={(e) => onEditingTextChange?.(e.target.value)}
-                  className={`w-full p-2 rounded-lg border ${isLight ? 'border-gray-300 bg-white' : 'border-zinc-700 bg-zinc-900'} ${textMain} resize-none focus:outline-none focus:ring-1 ${isLight ? 'focus:ring-gray-400' : 'focus:ring-zinc-600'}`}
-                  rows={3}
-                  autoFocus
-                />
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => onEdit?.(editingText || '')}
-                    className={`px-3 py-1 rounded-lg text-sm transition-colors ${isLight ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-zinc-800 text-white hover:bg-zinc-700'}`}
-                  >
-                    {lang === 'ru' ? 'Сохранить' : 'Save'}
-                  </button>
-                  <button
-                    onClick={onCancelEdit}
-                    className={`px-3 py-1 rounded-lg text-sm transition-colors ${isLight ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
-                  >
-                    {lang === 'ru' ? 'Отмена' : 'Cancel'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="whitespace-pre-wrap font-sans break-words">{displayText}</div>
-            )
+            <div className={`whitespace-pre-wrap font-sans break-words ${isEditing ? 'opacity-50' : ''}`}>{displayText}</div>
           ) : (
             <div className="font-sans markdown-body">
               <ReactMarkdown
@@ -539,25 +513,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                            <div className="flex items-center justify-between px-4 py-2.5 bg-black border-b border-white/10">
                               <div className="flex items-center gap-3">
                                   <span className="text-[10px] font-mono text-white/50 lowercase">{match[1]}</span>
-                                  {isRunnable && (
-                                      <button 
-                                        onClick={() => togglePreview(codeId)}
-                                        className="flex items-center gap-1 text-[10px] text-white/60 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded"
-                                      >
-                                          <Play size={10} fill="currentColor"/> {previewStates[codeId] ? (lang === 'ru' ? 'Скрыть' : 'Hide') : (lang === 'ru' ? 'Запуск' : 'Run')}
-                                      </button>
-                                  )}
                                   {isRunnable && onOpenPreview && (
                                       <button 
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onOpenPreview(codeText, match[1]);
-                                        }}
-                                        className="hidden sm:flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded font-medium"
+                                        onClick={() => onOpenPreview(codeText, match[1])}
+                                        className="flex items-center gap-1 text-[10px] text-white/60 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-0.5 rounded"
                                       >
-                                          <ExternalLink size={10} /> {lang === 'ru' ? 'Открыть панель' : 'Open Panel'}
+                                          <Play size={10} fill="currentColor"/> {lang === 'ru' ? 'Запуск' : 'Run'}
                                       </button>
                                   )}
+
                               </div>
                               <div className="flex items-center gap-2">
                                 <button 
@@ -725,11 +689,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                  </>
              )}
              
-             {/* Delete button */}
+             {/* Delete button - desktop only */}
              {onDelete && (
                <button 
                  onClick={onDelete}
-                 className={`p-1.5 ${textSecondary} hover:text-red-500 ${hoverBg} rounded-md transition-all`}
+                 className={`hidden md:block p-1.5 ${textSecondary} hover:text-red-500 ${hoverBg} rounded-md transition-all`}
                  title={lang === 'ru' ? 'Удалить' : 'Delete'}
                >
                  <Trash2 size={14} />

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Plus, StopCircle, X, AudioLines, ArrowUp, ArrowDown, Zap, BookOpen, FlaskConical, Camera, Image as ImageIcon, FileText, Globe, Sparkles, ChevronRight, Check } from 'lucide-react';
+import { Mic, Plus, StopCircle, X, AudioLines, ArrowUp, ArrowDown, Zap, BookOpen, FlaskConical, Camera, Image as ImageIcon, FileText, Globe, Sparkles, ChevronRight, Check, Maximize2, Minimize2 } from 'lucide-react';
 import { Attachment, ChatMode, TRANSLATIONS, InterfaceLanguage } from '../types';
 import { haptic } from '../utils/haptic';
 
@@ -16,8 +16,15 @@ interface DraggableSheetProps {
 const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onClose, menuRef }) => {
   const [translateY, setTranslateY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const startY = useRef(0);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Delay enabling close on overlay to prevent immediate close on mobile
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 150);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Global mouse/touch move handlers
   useEffect(() => {
@@ -65,8 +72,12 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
   return (
     <>
       {/* Mobile: full screen overlay */}
-      <div className="md:hidden fixed inset-0 z-[100] flex flex-col justify-end" onClick={onClose}>
-        <div className="absolute inset-0 bg-black/60" />
+      <div className="md:hidden fixed inset-0 z-[100] flex flex-col justify-end">
+        <div 
+          className="absolute inset-0 bg-black/60" 
+          onClick={() => isReady && onClose()} 
+          onTouchEnd={(e) => { if (isReady) { e.preventDefault(); onClose(); } }}
+        />
         <div 
           ref={(el) => {
             (sheetRef as any).current = el;
@@ -77,9 +88,7 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
             paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
             transform: `translateY(${translateY}px)`,
             transition: isDragging ? 'none' : 'transform 0.2s ease-out'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+          }}>
           {/* Drag Handle */}
           <div 
             className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none"
@@ -92,13 +101,13 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
         </div>
       </div>
 
-      {/* Desktop: positioned above input */}
-      <div className="hidden md:block absolute bottom-full left-0 right-0 mb-2 z-[100]">
+      {/* Desktop: positioned above input - compact width */}
+      <div className="hidden md:block absolute bottom-full left-0 mb-2 z-[100]">
         <div 
           ref={(el) => {
             if (menuRef) (menuRef as any).current = el;
           }}
-          className={`${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-2xl animate-slide-up w-full border ${isLight ? 'border-zinc-200' : 'border-zinc-800'}`}
+          className={`${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-2xl animate-slide-up w-[360px] border ${isLight ? 'border-zinc-200' : 'border-zinc-800'} shadow-xl`}
           style={{ paddingBottom: '16px' }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -142,97 +151,6 @@ const CloseButton: React.FC<CloseButtonProps> = ({ onClick, isLight, isBack = fa
   );
 };
 
-// Add to Chat Sheet Component
-interface AddToChatSheetProps {
-  isLight: boolean;
-  isRu: boolean;
-  menuRef: React.RefObject<HTMLDivElement>;
-  onClose: () => void;
-  onCamera: () => void;
-  onPhoto: () => void;
-  onFiles: () => void;
-  webSearch: boolean;
-  onToggleWebSearch: () => void;
-  onOpenStyleMenu: () => void;
-  getModeLabel: () => string;
-  text_color: string;
-  textMuted: string;
-}
-
-const AddToChatSheet: React.FC<AddToChatSheetProps> = ({
-  isLight, isRu, menuRef, onClose, onCamera, onPhoto, onFiles,
-  webSearch, onToggleWebSearch, onOpenStyleMenu, getModeLabel, text_color, textMuted
-}) => {
-  const cardBg = isLight ? 'bg-white' : 'bg-[#1a1a1a]';
-  const iconColor = isLight ? 'text-zinc-600' : 'text-zinc-400';
-
-  return (
-    <DraggableSheet isLight={isLight} onClose={onClose} menuRef={menuRef}>
-      {/* Header */}
-      <div className="flex items-center px-4 pb-3">
-        <CloseButton onClick={onClose} isLight={isLight} />
-        <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-8`}>
-          {isRu ? 'Добавить в чат' : 'Add to Chat'}
-        </span>
-      </div>
-
-      {/* Actions Grid */}
-      <div className="grid grid-cols-3 gap-2 px-4 pb-3">
-        <button 
-          onClick={onCamera}
-          className={`flex flex-col items-center justify-center gap-2 py-5 ${cardBg} rounded-xl active:opacity-70`}
-        >
-          <Camera size={26} className={iconColor} />
-          <span className={`text-[13px] ${text_color}`}>{isRu ? 'Камера' : 'Camera'}</span>
-        </button>
-        <button 
-          onClick={onPhoto}
-          className={`flex flex-col items-center justify-center gap-2 py-5 ${cardBg} rounded-xl active:opacity-70`}
-        >
-          <ImageIcon size={26} className={iconColor} />
-          <span className={`text-[13px] ${text_color}`}>{isRu ? 'Фото' : 'Photos'}</span>
-        </button>
-        <button 
-          onClick={onFiles}
-          className={`flex flex-col items-center justify-center gap-2 py-5 ${cardBg} rounded-xl active:opacity-70`}
-        >
-          <FileText size={26} className={iconColor} />
-          <span className={`text-[13px] ${text_color}`}>{isRu ? 'Файлы' : 'Files'}</span>
-        </button>
-      </div>
-
-      {/* Web Search */}
-      <div className={`mx-4 mb-2 flex items-center justify-between py-3.5 px-4 ${cardBg} rounded-xl`}>
-        <div className="flex items-center gap-3">
-          <Globe size={22} className={iconColor} />
-          <span className={`text-[15px] ${text_color}`}>{isRu ? 'Веб-поиск' : 'Web search'}</span>
-        </div>
-        <button 
-          onClick={onToggleWebSearch}
-          className={`w-[51px] h-[31px] rounded-full p-[2px] transition-all ${webSearch ? 'bg-blue-500' : (isLight ? 'bg-zinc-300' : 'bg-zinc-700')}`}
-        >
-          <div className={`w-[27px] h-[27px] rounded-full bg-white shadow-sm transition-transform ${webSearch ? 'translate-x-5' : 'translate-x-0'}`} />
-        </button>
-      </div>
-
-      {/* Choose Style */}
-      <button 
-        onClick={onOpenStyleMenu}
-        className={`mx-4 w-[calc(100%-32px)] flex items-center justify-between py-3.5 px-4 ${cardBg} rounded-xl active:opacity-70`}
-      >
-        <div className="flex items-center gap-3">
-          <Sparkles size={22} className={iconColor} />
-          <span className={`text-[15px] ${text_color}`}>{isRu ? 'Выбрать режим' : 'Choose style'}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className={`text-[15px] ${textMuted}`}>{getModeLabel()}</span>
-          <ChevronRight size={18} className={textMuted} />
-        </div>
-      </button>
-    </DraggableSheet>
-  );
-};
-
 const STORAGE_KEY = 'neo_input_settings';
 
 interface InputAreaProps {
@@ -245,16 +163,25 @@ interface InputAreaProps {
   placeholderText: string;
   isLight?: boolean;
   fileInputRef?: React.RefObject<HTMLInputElement>;
+  // Edit mode props
+  editingMessageId?: string | null;
+  editingText?: string;
+  onEditingTextChange?: (text: string) => void;
+  onSaveEdit?: () => void;
+  onCancelEdit?: () => void;
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({
-  onSend, onStop, onStartLiveMode, onInputFocus, isStreaming, language, placeholderText, isLight = false, fileInputRef: externalFileInputRef
+  onSend, onStop, onStartLiveMode, onInputFocus, isStreaming, language, placeholderText, isLight = false, fileInputRef: externalFileInputRef,
+  editingMessageId, editingText, onEditingTextChange, onSaveEdit, onCancelEdit
 }) => {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [showStyleMenu, setShowStyleMenu] = useState(false);
+  // Single state for menu: null = closed, 'add' = main menu, 'style' = style selection, 'length' = length selection
+  const [menuPage, setMenuPage] = useState<'add' | 'style' | 'length' | null>(null);
+  // Expanded input mode for long text
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Load saved settings
   const loadSettings = () => {
@@ -298,14 +225,17 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
   // Close menu on outside click
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent | TouchEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowAddMenu(false);
-        setShowStyleMenu(false);
+        setMenuPage(null);
       }
     };
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('touchstart', handleClick);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('touchstart', handleClick);
+    };
   }, []);
 
   // Auto-resize textarea
@@ -350,7 +280,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
       reader.readAsDataURL(file);
     });
     e.target.value = '';
-    setShowAddMenu(false);
+    setMenuPage(null);
   };
 
   const removeAttachment = (index: number) => {
@@ -464,7 +394,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     
     recognitionRef.current = recognition;
     recognition.start();
-    setShowAddMenu(false);
+    setMenuPage(null);
   };
 
   const getModeLabel = () => {
@@ -502,93 +432,275 @@ export const InputArea: React.FC<InputAreaProps> = ({
         </div>
       )}
 
-      {/* Add to Chat Modal - Bottom sheet with drag */}
-      {showAddMenu && (
-        <AddToChatSheet
-          isLight={isLight}
-          isRu={isRu}
-          menuRef={menuRef}
-          onClose={() => setShowAddMenu(false)}
-          onCamera={() => { imageInputRef.current?.click(); setShowAddMenu(false); }}
-          onPhoto={() => { imageInputRef.current?.click(); setShowAddMenu(false); }}
-          onFiles={() => { fileInputRef.current?.click(); setShowAddMenu(false); }}
-          webSearch={settings.webSearch}
-          onToggleWebSearch={() => setSettings(s => ({ ...s, webSearch: !s.webSearch }))}
-          onOpenStyleMenu={() => { setShowAddMenu(false); setShowStyleMenu(true); }}
-          getModeLabel={getModeLabel}
-          text_color={text_color}
-          textMuted={textMuted}
-        />
-      )}
-
-
-
-      {/* Style Selection Modal */}
-      {showStyleMenu && (
-        <DraggableSheet isLight={isLight} onClose={() => setShowStyleMenu(false)} menuRef={menuRef}>
-          {/* Header */}
-          <div className="flex items-center px-4 pb-3">
-            <CloseButton onClick={() => { setShowStyleMenu(false); setShowAddMenu(true); }} isLight={isLight} isBack />
-            <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-9`}>
-              {isRu ? 'Выбрать режим' : 'Choose style'}
-            </span>
-          </div>
-
-          {/* Options */}
-          <div className="px-4 space-y-2 pb-2">
-            {[
-              { mode: ChatMode.STANDARD, icon: <Zap size={24} />, label: isRu ? 'Стандарт' : 'Normal', desc: isRu ? 'Быстрые ответы' : 'Quick responses' },
-              { mode: ChatMode.RESEARCH, icon: <BookOpen size={24} />, label: isRu ? 'Исследование' : 'Research', desc: isRu ? 'Глубокий анализ' : 'Deep analysis' },
-              { mode: ChatMode.LABS, icon: <FlaskConical size={24} />, label: isRu ? 'Лаборатория' : 'Labs', desc: isRu ? 'Код и документы' : 'Code & docs' },
-            ].map(item => (
-              <button
-                key={item.mode}
-                onClick={() => { setSettings(s => ({ ...s, mode: item.mode })); setShowStyleMenu(false); }}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} active:opacity-70`}
-              >
-                <div className={`w-12 h-12 rounded-xl ${isLight ? 'bg-zinc-100' : 'bg-zinc-800'} flex items-center justify-center ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                  {item.icon}
+      {/* Unified Menu Modal - Single DraggableSheet with page switching */}
+      {menuPage && (
+        <DraggableSheet isLight={isLight} onClose={() => setMenuPage(null)} menuRef={menuRef}>
+          {/* Add to Chat Page */}
+          {menuPage === 'add' && (
+            <>
+              <div className="flex items-center px-4 pb-3">
+                <CloseButton onClick={() => setMenuPage(null)} isLight={isLight} />
+                <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-8`}>
+                  {isRu ? 'Добавить в чат' : 'Add to Chat'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 px-4 pb-3">
+                <button onClick={() => { imageInputRef.current?.click(); setMenuPage(null); }}
+                  className={`flex flex-col items-center justify-center gap-2 py-5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70`}>
+                  <Camera size={26} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
+                  <span className={`text-[13px] ${text_color}`}>{isRu ? 'Камера' : 'Camera'}</span>
+                </button>
+                <button onClick={() => { imageInputRef.current?.click(); setMenuPage(null); }}
+                  className={`flex flex-col items-center justify-center gap-2 py-5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70`}>
+                  <ImageIcon size={26} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
+                  <span className={`text-[13px] ${text_color}`}>{isRu ? 'Фото' : 'Photos'}</span>
+                </button>
+                <button onClick={() => { fileInputRef.current?.click(); setMenuPage(null); }}
+                  className={`flex flex-col items-center justify-center gap-2 py-5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70`}>
+                  <FileText size={26} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
+                  <span className={`text-[13px] ${text_color}`}>{isRu ? 'Файлы' : 'Files'}</span>
+                </button>
+              </div>
+              <div className={`mx-4 mb-2 flex items-center justify-between py-3.5 px-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl`}>
+                <div className="flex items-center gap-3">
+                  <Globe size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
+                  <span className={`text-[15px] ${text_color}`}>{isRu ? 'Веб-поиск' : 'Web search'}</span>
                 </div>
-                <div className="flex-1 text-left">
-                  <div className={`text-[16px] font-medium ${text_color}`}>{item.label}</div>
-                  <div className={`text-[13px] ${textMuted}`}>{item.desc}</div>
+                <button onClick={() => setSettings(s => ({ ...s, webSearch: !s.webSearch }))}
+                  className={`w-[51px] h-[31px] rounded-full p-[2px] transition-all ${settings.webSearch ? 'bg-blue-500' : (isLight ? 'bg-zinc-300' : 'bg-zinc-700')}`}>
+                  <div className={`w-[27px] h-[27px] rounded-full bg-white shadow-sm transition-transform ${settings.webSearch ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <button 
+                onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPage('style'); }}
+                onClick={(e) => { e.stopPropagation(); setMenuPage('style'); }}
+                className={`mx-4 mb-2 w-[calc(100%-32px)] flex items-center justify-between py-3.5 px-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70 touch-manipulation`}>
+                <div className="flex items-center gap-3">
+                  <Sparkles size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
+                  <span className={`text-[15px] ${text_color}`}>{isRu ? 'Режим' : 'Mode'}</span>
                 </div>
-                {settings.mode === item.mode && <Check size={24} className="text-blue-500" />}
+                <div className="flex items-center gap-1">
+                  <span className={`text-[15px] ${textMuted}`}>{getModeLabel()}</span>
+                  <ChevronRight size={18} className={textMuted} />
+                </div>
               </button>
-            ))}
-          </div>
+              <button 
+                onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPage('length'); }}
+                onClick={(e) => { e.stopPropagation(); setMenuPage('length'); }}
+                className={`mx-4 w-[calc(100%-32px)] flex items-center justify-between py-3.5 px-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70 touch-manipulation`}>
+                <div className="flex items-center gap-3">
+                  <Zap size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
+                  <span className={`text-[15px] ${text_color}`}>{isRu ? 'Длина ответа' : 'Response length'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className={`text-[15px] ${textMuted}`}>
+                    {settings.responseLength === 'brief' ? (isRu ? 'Краткий' : 'Brief') : 
+                     settings.responseLength === 'detailed' ? (isRu ? 'Подробный' : 'Detailed') : 
+                     (isRu ? 'Баланс' : 'Balanced')}
+                  </span>
+                  <ChevronRight size={18} className={textMuted} />
+                </div>
+              </button>
+            </>
+          )}
+
+          {/* Style Selection Page */}
+          {menuPage === 'style' && (
+            <>
+              <div className="flex items-center px-4 pb-3">
+                <CloseButton onClick={() => setMenuPage('add')} isLight={isLight} isBack />
+                <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-9`}>
+                  {isRu ? 'Выбрать режим' : 'Choose style'}
+                </span>
+              </div>
+              <div className={`mx-4 rounded-xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'}`}>
+                {[
+                  { mode: ChatMode.STANDARD, icon: <Zap size={18} />, label: isRu ? 'Стандарт' : 'Normal' },
+                  { mode: ChatMode.RESEARCH, icon: <BookOpen size={18} />, label: isRu ? 'Исследование' : 'Research' },
+                  { mode: ChatMode.LABS, icon: <FlaskConical size={18} />, label: isRu ? 'Лаборатория' : 'Labs' },
+                ].map((item, i, arr) => (
+                  <button key={item.mode}
+                    onClick={() => { setSettings(s => ({ ...s, mode: item.mode })); setMenuPage('add'); }}
+                    className={`w-full flex items-center justify-between py-3.5 px-4 active:opacity-70 touch-manipulation ${i < arr.length - 1 ? (isLight ? 'border-b border-zinc-100' : 'border-b border-zinc-800') : ''}`}>
+                    <div className="flex items-center gap-3">
+                      <span className={isLight ? 'text-zinc-500' : 'text-zinc-400'}>{item.icon}</span>
+                      <span className={`text-[15px] ${text_color}`}>{item.label}</span>
+                    </div>
+                    {settings.mode === item.mode && <Check size={20} className="text-blue-500" />}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Length Selection Page */}
+          {menuPage === 'length' && (
+            <>
+              <div className="flex items-center px-4 pb-3">
+                <CloseButton onClick={() => setMenuPage('add')} isLight={isLight} isBack />
+                <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-9`}>
+                  {isRu ? 'Длина ответа' : 'Response length'}
+                </span>
+              </div>
+              <div className={`mx-4 rounded-xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'}`}>
+                {[
+                  { value: 'brief' as const, label: isRu ? 'Краткий' : 'Brief' },
+                  { value: 'balanced' as const, label: isRu ? 'Баланс' : 'Balanced' },
+                  { value: 'detailed' as const, label: isRu ? 'Подробный' : 'Detailed' },
+                ].map((item, i, arr) => (
+                  <button key={item.value}
+                    onClick={() => { setSettings(s => ({ ...s, responseLength: item.value })); setMenuPage('add'); }}
+                    className={`w-full flex items-center justify-between py-3.5 px-4 active:opacity-70 touch-manipulation ${i < arr.length - 1 ? (isLight ? 'border-b border-zinc-100' : 'border-b border-zinc-800') : ''}`}>
+                    <span className={`text-[15px] ${text_color}`}>{item.label}</span>
+                    {settings.responseLength === item.value && <Check size={20} className="text-blue-500" />}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </DraggableSheet>
       )}
 
+      {/* Edit Mode Indicator */}
+      {editingMessageId && (
+        <div className={`flex items-center gap-2 mb-2 px-2 py-2 rounded-xl ${isLight ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
+          <div className={`w-1 h-8 rounded-full bg-blue-500`} />
+          <div className="flex-1 min-w-0">
+            <div className={`text-xs font-medium ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
+              {isRu ? 'Редактирование' : 'Editing'}
+            </div>
+            <div className={`text-sm truncate ${text_color}`}>
+              {editingText?.slice(0, 50)}{(editingText?.length || 0) > 50 ? '...' : ''}
+            </div>
+          </div>
+          <button
+            onClick={onCancelEdit}
+            className={`p-2 rounded-full ${isLight ? 'hover:bg-blue-100' : 'hover:bg-blue-500/20'} transition-colors`}
+          >
+            <X size={18} className={isLight ? 'text-blue-600' : 'text-blue-400'} />
+          </button>
+        </div>
+      )}
+
+      {/* Expanded Input Modal - ChatGPT style */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center px-4 pb-4 md:pb-0" onClick={() => setIsExpanded(false)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60" />
+          {/* Modal */}
+          <div 
+            className={`relative w-full max-w-2xl ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-2xl shadow-2xl overflow-hidden animate-slide-up`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxHeight: 'calc(100vh - 120px)' }}
+          >
+            {/* Close button - top right */}
+            <button
+              onClick={() => setIsExpanded(false)}
+              className={`absolute top-3 right-3 p-2 rounded-full ${isLight ? 'bg-gray-100 hover:bg-gray-200 text-gray-500' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'} transition-colors z-10`}
+            >
+              <X size={18} />
+            </button>
+            
+            {/* Textarea */}
+            <textarea
+              value={editingMessageId ? (editingText || '') : text}
+              onChange={(e) => editingMessageId ? onEditingTextChange?.(e.target.value) : setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setIsExpanded(false);
+                }
+              }}
+              placeholder={editingMessageId ? (isRu ? 'Редактировать сообщение...' : 'Edit message...') : placeholderText}
+              autoFocus
+              className={`w-full bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none text-[16px] leading-7 resize-none p-4 pt-14 min-h-[200px] max-h-[60vh] overflow-y-auto`}
+              style={{ fontSize: '16px' }}
+            />
+            
+            {/* Bottom bar with send button */}
+            <div className={`flex items-center justify-end gap-2 px-4 py-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+              <button
+                onClick={() => {
+                  if (editingMessageId) {
+                    onSaveEdit?.();
+                  } else {
+                    handleSend();
+                  }
+                  setIsExpanded(false);
+                }}
+                disabled={!(editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))}
+                className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
+                  (editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))
+                    ? (editingMessageId ? 'bg-blue-500 text-white' : (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black'))
+                    : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
+                }`}
+              >
+                {editingMessageId ? (isRu ? 'Сохранить' : 'Save') : (isRu ? 'Отправить' : 'Send')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input Bar - Thin elegant design */}
-      <div className="flex items-center gap-2">
-        {/* Plus Button - Centered with input */}
-        <button
-          onClick={() => { setShowAddMenu(!showAddMenu); setShowStyleMenu(false); }}
-          className={`w-10 h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0 ${
-            isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-800 text-zinc-400'
-          } ${showAddMenu ? (isLight ? 'bg-gray-300' : 'bg-zinc-700 text-white') : ''}`}
-        >
-          <Plus size={22} strokeWidth={1.5} />
-        </button>
+      <div className="flex items-end gap-2">
+        {/* Plus Button - Hidden in edit mode, always at bottom */}
+        {!editingMessageId && (
+          <button
+            onClick={() => setMenuPage(menuPage ? null : 'add')}
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0 mb-0.5 ${
+              isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-800 text-zinc-400'
+            } ${menuPage ? (isLight ? 'bg-gray-300' : 'bg-zinc-700 text-white') : ''}`}
+          >
+            <Plus size={22} strokeWidth={1.5} />
+          </button>
+        )}
 
         {/* Main Input Container */}
-        <div className={`flex-1 ${bgCard} rounded-full flex items-center px-4 py-2 min-h-[44px]`}>
+        <div className={`relative flex-1 ${bgCard} rounded-2xl flex items-center px-4 py-2 min-h-[44px] ${editingMessageId ? (isLight ? 'border-2 border-blue-300' : 'border-2 border-blue-500/50') : ''}`}>
+          {/* Expand button - show when text has 4+ lines (newlines) */}
+          {(((editingMessageId ? editingText : text) || '').split('\n').length >= 4) && (
+            <button
+              onClick={() => setIsExpanded(true)}
+              className={`absolute top-2 right-2 p-1.5 rounded-lg ${isLight ? 'bg-gray-200 text-gray-500 hover:bg-gray-300' : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'} transition-colors z-10`}
+            >
+              <Maximize2 size={14} />
+            </button>
+          )}
           <textarea
             ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
+            value={editingMessageId ? (editingText || '') : text}
+            onChange={(e) => editingMessageId ? onEditingTextChange?.(e.target.value) : setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (editingMessageId) {
+                  onSaveEdit?.();
+                } else {
+                  handleSend();
+                }
+              }
+              if (e.key === 'Escape' && editingMessageId) {
+                onCancelEdit?.();
+              }
+            }}
             onFocus={onInputFocus}
-            placeholder={placeholderText}
+            placeholder={editingMessageId ? (isRu ? 'Редактировать сообщение...' : 'Edit message...') : placeholderText}
             rows={1}
-            className={`flex-1 bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none max-h-24 scrollbar-hide text-[16px] leading-6 resize-none py-0.5`}
+            className={`flex-1 bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none max-h-32 scrollbar-hide text-[16px] leading-6 resize-none self-center`}
             style={{ fontSize: '16px' }}
           />
 
           {/* Right Icons inside input */}
           <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
-            {isStreaming ? (
+            {editingMessageId ? (
+              /* Edit mode: show save button */
+              <button 
+                onClick={onSaveEdit} 
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white"
+              >
+                <Check size={18} strokeWidth={2.5} />
+              </button>
+            ) : isStreaming ? (
               <button onClick={onStop} className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full">
                 <StopCircle size={16} fill="currentColor" />
               </button>

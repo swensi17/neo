@@ -125,8 +125,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Only reset state when modal opens, not on every settings change
+  const prevIsOpen = useRef(isOpen);
   useEffect(() => {
-    if (isOpen) {
+    // Only run when modal opens (isOpen changes from false to true)
+    if (isOpen && !prevIsOpen.current) {
       setSubPage(initialPage || (isDesktop ? 'profile' : 'main'));
       setName(userProfile.name);
       setAvatar(userProfile.avatar);
@@ -134,7 +137,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setCustomPrompt(settings.customSystemInstruction || '');
       setApiKeys(getApiKeys());
     }
-  }, [isOpen, userProfile, settings, initialPage, isDesktop]);
+    prevIsOpen.current = isOpen;
+  }, [isOpen, initialPage, isDesktop]);
 
   if (!isOpen) return null;
 
@@ -246,7 +250,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (persona) {
       updateSettings({ selectedPersona: id, customSystemInstruction: persona.prompt });
       setCustomPrompt(persona.prompt);
-      setSubPage('main');
     }
   };
 
@@ -300,13 +303,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   // Back Header
-  const BackHeader = ({ title, onBack }: { title: string, onBack: () => void }) => (
+  const BackHeader = ({ title, onBack, onSave }: { title: string, onBack: () => void, onSave?: () => void }) => (
     <div className="flex items-center justify-between py-3 px-1 mb-4 mt-2">
-      <button onClick={onBack} className={`w-9 h-9 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-100 active:bg-gray-200' : 'bg-zinc-900 active:bg-zinc-800'}`}>
+      <button onClick={onBack} className={`w-9 h-9 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-100 active:bg-gray-200' : 'bg-zinc-900 active:bg-zinc-800'} touch-manipulation`}>
         <ChevronRight size={20} className={`${textMuted} rotate-180`} />
       </button>
       <span className={`text-[17px] font-semibold ${text}`}>{title}</span>
-      <div className="w-9" />
+      {onSave ? (
+        <button onClick={onSave} className={`w-9 h-9 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-100 active:bg-gray-200' : 'bg-zinc-900 active:bg-zinc-800'} touch-manipulation`}>
+          <Check size={20} className="text-blue-500" />
+        </button>
+      ) : (
+        <div className="w-9" />
+      )}
     </div>
   );
 
@@ -503,7 +512,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Profile Page
   const renderProfile = () => (
     <div>
-      <BackHeader title={isRu ? 'Профиль' : 'Profile'} onBack={() => setSubPage('main')} />
+      <BackHeader 
+        title={isRu ? 'Профиль' : 'Profile'} 
+        onBack={() => setSubPage('main')} 
+        onSave={() => { updateProfile({ name, bio, avatar }); setSubPage('main'); }}
+      />
       
       {/* Avatar */}
       <div className="flex justify-center mb-6">
@@ -529,8 +542,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <input 
           type="text" 
           value={name} 
-          onChange={(e) => { setName(e.target.value); updateProfile({ name: e.target.value }); }}
-          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3.5 ${text} text-[15px] focus:outline-none`}
+          onChange={(e) => setName(e.target.value)}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3.5 ${text} text-[15px] focus:outline-none touch-manipulation`}
         />
       </div>
 
@@ -539,9 +552,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <label className={`text-[13px] ${textMuted} block mb-2`}>{isRu ? 'О себе' : 'About'}</label>
         <textarea 
           value={bio} 
-          onChange={(e) => { setBio(e.target.value); updateProfile({ bio: e.target.value }); }}
+          onChange={(e) => setBio(e.target.value)}
           onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)}
-          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3.5 ${text} text-[15px] focus:outline-none min-h-[100px] resize-none`}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3.5 ${text} text-[15px] focus:outline-none min-h-[100px] resize-none touch-manipulation`}
           placeholder={isRu ? 'Расскажите о себе...' : 'Tell about yourself...'}
         />
       </div>
@@ -551,7 +564,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Persona Page
   const renderPersona = () => (
     <div>
-      <BackHeader title={isRu ? 'Роль AI' : 'AI Role'} onBack={() => setSubPage('main')} />
+      <BackHeader 
+        title={isRu ? 'Роль AI' : 'AI Role'} 
+        onBack={() => setSubPage('main')} 
+        onSave={() => { updateSettings({ customSystemInstruction: customPrompt }); setSubPage('main'); }}
+      />
       
       {/* Search */}
       <div className="relative mb-4">
@@ -568,8 +585,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       {/* Reset */}
       {settings.selectedPersona && (
         <button 
-          onClick={() => { updateSettings({ selectedPersona: undefined, customSystemInstruction: '' }); setCustomPrompt(''); }}
-          className="w-full text-red-500 text-[15px] py-3 mb-4"
+          onClick={(e) => { e.stopPropagation(); updateSettings({ selectedPersona: undefined, customSystemInstruction: '' }); setCustomPrompt(''); }}
+          className="w-full text-red-500 text-[15px] py-3 mb-4 touch-manipulation"
         >
           {isRu ? 'Сбросить роль' : 'Reset Role'}
         </button>
@@ -581,8 +598,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {filteredPersonas.map(p => (
             <button 
               key={p.id}
-              onClick={() => selectPersona(p.id)}
-              className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0`}
+              onClick={(e) => { e.stopPropagation(); selectPersona(p.id); }}
+              className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0 touch-manipulation`}
             >
               <div className="flex items-center gap-3">
                 <Sparkles size={18} className={textMuted} />
@@ -599,9 +616,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <label className={`text-[13px] ${textMuted} block mb-2`}>{isRu ? 'Свои инструкции' : 'Custom Instructions'}</label>
         <textarea 
           value={customPrompt} 
-          onChange={(e) => { setCustomPrompt(e.target.value); updateSettings({ customSystemInstruction: e.target.value }); }}
+          onChange={(e) => setCustomPrompt(e.target.value)}
           onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)}
-          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3.5 ${text} text-[15px] focus:outline-none min-h-[100px] resize-none`}
+          className={`w-full ${isLight ? 'bg-gray-100' : 'bg-zinc-900'} rounded-xl px-4 py-3.5 ${text} text-[15px] focus:outline-none min-h-[100px] resize-none touch-manipulation`}
           placeholder={isRu ? 'Опишите как AI должен себя вести...' : 'Describe how AI should behave...'}
         />
       </div>
@@ -634,8 +651,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         ].filter(l => l.label.toLowerCase().includes(langSearch.toLowerCase()) || l.value.includes(langSearch.toLowerCase())).map(lang => (
           <button 
             key={lang.value}
-            onClick={() => updateSettings({ language: lang.value as InterfaceLanguage })}
-            className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0`}
+            onClick={(e) => { e.stopPropagation(); updateSettings({ language: lang.value as InterfaceLanguage }); }}
+            className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0 touch-manipulation`}
           >
             <div className="flex items-center gap-3">
               <span className="text-xl">{lang.icon}</span>
@@ -654,8 +671,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {filteredLanguages.map(lang => (
             <button 
               key={lang.value}
-              onClick={() => updateSettings({ modelLanguage: lang.value })}
-              className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0`}
+              onClick={(e) => { e.stopPropagation(); updateSettings({ modelLanguage: lang.value }); }}
+              className={`w-full flex items-center justify-between py-3.5 px-4 ${itemBg} border-b ${isLight ? 'border-gray-100' : 'border-zinc-800'} last:border-b-0 touch-manipulation`}
             >
               <div className="flex items-center gap-3">
                 <span className="text-xl">{lang.icon}</span>
@@ -676,8 +693,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       
       <div className="space-y-0">
         <button 
-          onClick={() => updateSettings({ theme: 'dark' })}
-          className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg}`}
+          onClick={(e) => { e.stopPropagation(); updateSettings({ theme: 'dark' }); }}
+          className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
         >
           <div className="flex items-center gap-3">
             <Moon size={20} className={textMuted} />
@@ -687,8 +704,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
         <div className={`border-t ${divider} ml-12`} />
         <button 
-          onClick={() => updateSettings({ theme: 'light' })}
-          className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg}`}
+          onClick={(e) => { e.stopPropagation(); updateSettings({ theme: 'light' }); }}
+          className={`w-full flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
         >
           <div className="flex items-center gap-3">
             <Sun size={20} className={textMuted} />
