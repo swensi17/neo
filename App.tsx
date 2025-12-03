@@ -13,7 +13,7 @@ import { haptic } from './utils/haptic';
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
   Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ArrowDown,
-  Search, Upload, X, Edit2, Share2, FolderPlus, Tag
+  Search, Upload, X, PenSquare, Share2, FolderPlus, Tag
 } from 'lucide-react';
 
 const DEFAULT_PERSONA = Persona.ASSISTANT;
@@ -847,95 +847,61 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Sidebar - Use bg-sidebar variable */}
+      {/* Sidebar - ChatGPT style */}
       <aside 
         className={`
-            fixed md:relative z-50 h-full bg-sidebar border-r border-white/10 flex flex-col transition-all duration-150 ease-out
-            ${isMobileMenuOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full w-[280px] md:translate-x-0'}
-            ${isSidebarOpen ? 'md:w-[280px]' : 'md:w-0 md:min-w-0 md:overflow-hidden md:border-r-0'}
+            fixed md:relative z-50 h-full bg-sidebar flex flex-col transition-all duration-150 ease-out
+            ${isMobileMenuOpen ? 'translate-x-0 w-[300px]' : '-translate-x-full w-[300px] md:translate-x-0'}
+            ${isSidebarOpen ? 'md:w-[260px]' : 'md:w-0 md:min-w-0 md:overflow-hidden'}
         `}
       >
-        <div className="p-4 space-y-3">
-            <button 
-                onClick={createSession}
-                className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg font-medium transition-all group ${
-                    settings.theme === 'light' 
-                        ? 'hover:bg-gray-100 text-gray-700' 
-                        : 'hover:bg-white/5 text-white/80'
-                }`}
-            >
-                <div className={`p-1.5 rounded-md transition-colors ${
-                    settings.theme === 'light' 
-                        ? 'bg-gray-100 group-hover:bg-gray-200' 
-                        : 'bg-white/10 group-hover:bg-white/15'
-                }`}>
-                    <Plus size={16} strokeWidth={2} />
-                </div>
-                <span className="text-sm">{t.newChat}</span>
-            </button>
-            
-            {/* Search */}
-            <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+        {/* Top bar - Search + New chat button */}
+        <div className="p-3 flex items-center gap-2">
+            <div className="flex-1 relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" strokeWidth={2} />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={settings.language === 'ru' ? 'Поиск чатов...' : 'Search chats...'}
-                    className="w-full bg-surface border border-white/5 rounded-lg pl-9 pr-3 py-2 text-sm text-text placeholder-text-secondary focus:outline-none focus:border-white/20"
+                    placeholder={settings.language === 'ru' ? 'Поиск' : 'Search'}
+                    className="w-full bg-transparent border border-white/20 rounded-xl pl-9 pr-3 py-2 text-sm text-text placeholder-white/40 focus:outline-none focus:border-white/30"
                 />
                 {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text">
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white">
                         <X size={14} />
                     </button>
                 )}
             </div>
-
-            {/* Export/Import buttons */}
-            <div className="flex gap-2">
-                <button 
-                    onClick={exportAllData}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-surface hover:bg-surface-hover text-text-secondary hover:text-text py-2 px-3 rounded-lg text-xs border border-white/5 transition-all"
-                    title={settings.language === 'ru' ? 'Экспорт всех данных' : 'Export all data'}
-                >
-                    <Download size={12} />
-                    <span>{settings.language === 'ru' ? 'Экспорт' : 'Export'}</span>
-                </button>
-                <label className="flex-1 flex items-center justify-center gap-1.5 bg-surface hover:bg-surface-hover text-text-secondary hover:text-text py-2 px-3 rounded-lg text-xs border border-white/5 transition-all cursor-pointer">
-                    <Upload size={12} />
-                    <span>{settings.language === 'ru' ? 'Импорт' : 'Import'}</span>
-                    <input type="file" accept=".json" onChange={importAllData} className="hidden" />
-                </label>
-            </div>
+            <button 
+                onClick={createSession}
+                className="p-2 border border-white/20 rounded-xl text-white/60 hover:text-white transition-all"
+                title={t.newChat}
+            >
+                <PenSquare size={18} strokeWidth={1.5} />
+            </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 scrollbar-hide">
-            <div className="px-4 pb-2 text-[10px] font-bold text-text-secondary uppercase tracking-widest opacity-70">
-                {t.history} {searchQuery && `(${filteredSessions.length})`}
-            </div>
+        {/* Chat list */}
+        <div className="flex-1 overflow-y-auto px-2 space-y-0.5 scrollbar-hide">
             {filteredSessions.map(session => (
                 <div 
                     key={session.id}
                     onClick={() => {
+                        haptic.light();
                         setCurrentSessionId(session.id);
                         setIsMobileMenuOpen(false);
                     }}
                     className={`
-                        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all relative
-                        ${currentSessionId === session.id ? 'bg-surface-hover text-text font-medium' : 'text-text-secondary hover:bg-surface-hover hover:text-text'}
+                        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all
+                        ${currentSessionId === session.id ? 'bg-surface-hover text-text' : 'text-text-secondary hover:bg-surface-hover/50 hover:text-text'}
                     `}
                 >
-                    {session.isShared ? (
-                      <Share2 size={14} className={`${currentSessionId === session.id ? 'text-blue-400' : 'text-blue-400/50'}`} />
-                    ) : (
-                      <MessageSquare size={14} className={currentSessionId === session.id ? 'text-text' : 'opacity-50'} />
-                    )}
-                    <div className="flex-1 truncate text-xs">
+                    <div className="flex-1 truncate text-[13px]">
                         {session.title || 'Untitled'}
                     </div>
                     <button 
-                        onClick={(e) => deleteSession(session.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-text-secondary hover:text-red-400 hover:bg-surface rounded transition-all"
+                        onClick={(e) => { e.stopPropagation(); haptic.light(); deleteSession(session.id, e); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-text-secondary hover:text-red-400 rounded transition-all"
                     >
                         <Trash2 size={12} />
                     </button>
@@ -943,23 +909,30 @@ const App: React.FC = () => {
             ))}
         </div>
 
-        <div className="p-4 bg-sidebar border-t border-white/5">
-            <div 
-                className="flex items-center gap-3 cursor-pointer hover:bg-surface-hover p-2 rounded-xl transition-colors group"
-                onClick={() => setIsSettingsOpen(true)}
-            >
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-surface border border-white/5">
-                    {userProfile.avatar ? (
-                        <img src={userProfile.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                        <DefaultAvatar />
-                    )}
+        {/* Bottom - User profile + Settings */}
+        <div className="p-3 border-t border-white/5">
+            <div className="flex items-center gap-2">
+                <div 
+                    className="flex-1 flex items-center gap-3 cursor-pointer hover:bg-surface-hover p-2 rounded-xl transition-colors"
+                    onClick={() => { haptic.light(); setIsSettingsOpen(true); }}
+                >
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-surface flex items-center justify-center text-xs font-bold text-text">
+                        {userProfile.avatar ? (
+                            <img src={userProfile.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            userProfile.name.charAt(0).toUpperCase()
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate text-text">{userProfile.name}</div>
+                    </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate text-text transition-colors">{userProfile.name}</div>
-                    <div className="text-[10px] text-text-secondary">{t.settings}</div>
-                </div>
-                <SettingsIcon size={16} className="text-text-secondary group-hover:text-text transition-colors" />
+                <button 
+                    onClick={() => { haptic.light(); setIsSettingsOpen(true); }}
+                    className="p-2 text-text-secondary hover:text-text hover:bg-surface-hover rounded-xl transition-colors"
+                >
+                    <SettingsIcon size={18} />
+                </button>
             </div>
         </div>
       </aside>
@@ -1083,7 +1056,7 @@ const App: React.FC = () => {
             )}
         </div>
 
-        <div className="w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-2 pb-4 z-20 px-2 md:px-0 transition-colors duration-300">
+        <div className="w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-2 z-20 px-2 md:px-0 transition-colors duration-300" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <InputArea 
                 onSend={handleSendMessage} 
                 onStop={handleStopGeneration}
