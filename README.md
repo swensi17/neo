@@ -3,10 +3,6 @@
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/swensi17/neo/main/public/logo-dark.svg" alt="NEO Chat" width="280"/>
-</p>
-
-<p align="center">
   <strong>🚀 AI-ассистент нового поколения на базе Google Gemini 2.5</strong>
 </p>
 
