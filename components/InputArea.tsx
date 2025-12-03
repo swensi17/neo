@@ -74,7 +74,7 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
       {/* Mobile: full screen overlay */}
       <div className="md:hidden fixed inset-0 z-[100] flex flex-col justify-end">
         <div 
-          className="absolute inset-0 bg-black/60" 
+          className="absolute inset-0 bg-black/70" 
           onClick={() => isReady && onClose()} 
           onTouchEnd={(e) => { if (isReady) { e.preventDefault(); onClose(); } }}
         />
@@ -83,9 +83,9 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
             (sheetRef as any).current = el;
             if (menuRef) (menuRef as any).current = el;
           }}
-          className={`relative ${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-t-[20px] animate-slide-up w-full`}
+          className={`relative ${isLight ? 'bg-zinc-100' : 'bg-[#0a0a0a]'} rounded-t-[16px] animate-slide-up w-full`}
           style={{ 
-            paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+            paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
             transform: `translateY(${translateY}px)`,
             transition: isDragging ? 'none' : 'transform 0.2s ease-out'
           }}
@@ -93,11 +93,11 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
           onTouchEnd={(e) => e.stopPropagation()}>
           {/* Drag Handle */}
           <div 
-            className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none"
+            className="flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing select-none"
             onMouseDown={(e) => { e.preventDefault(); handleDragStart(e.clientY); }}
             onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
           >
-            <div className={`w-9 h-1 rounded-full ${isLight ? 'bg-zinc-400' : 'bg-zinc-600'}`} />
+            <div className={`w-8 h-1 rounded-full ${isLight ? 'bg-zinc-400' : 'bg-zinc-700'}`} />
           </div>
           {children}
         </div>
@@ -109,12 +109,12 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
           ref={(el) => {
             if (menuRef) (menuRef as any).current = el;
           }}
-          className={`${isLight ? 'bg-zinc-100' : 'bg-[#000000]'} rounded-2xl animate-slide-up w-[360px] border ${isLight ? 'border-zinc-200' : 'border-zinc-800'} shadow-xl`}
-          style={{ paddingBottom: '16px' }}
+          className={`${isLight ? 'bg-zinc-100' : 'bg-[#0a0a0a]'} rounded-xl animate-slide-up w-[320px] border ${isLight ? 'border-zinc-200' : 'border-zinc-800/50'} shadow-xl`}
+          style={{ paddingBottom: '12px' }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top padding instead of drag handle */}
-          <div className="pt-2" />
+          <div className="pt-1.5" />
           {children}
         </div>
       </div>
@@ -142,14 +142,148 @@ const CloseButton: React.FC<CloseButtonProps> = ({ onClick, isLight, isBack = fa
     <button 
       onClick={handleClick}
       onTouchEnd={handleClick}
-      className={`w-9 h-9 flex items-center justify-center rounded-full ${isLight ? 'bg-zinc-200 active:bg-zinc-300' : 'bg-zinc-800 active:bg-zinc-700'} transition-colors z-10`}
+      className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'bg-zinc-200 active:bg-zinc-300' : 'bg-[#1a1a1a] active:bg-zinc-800'} transition-colors z-10`}
     >
       {isBack ? (
-        <ChevronRight size={20} strokeWidth={2.5} className={`${isLight ? 'text-zinc-700' : 'text-zinc-300'} rotate-180`} />
+        <ChevronRight size={18} strokeWidth={2} className={`${isLight ? 'text-zinc-700' : 'text-zinc-400'} rotate-180`} />
       ) : (
-        <ArrowDown size={20} strokeWidth={2.5} className={isLight ? 'text-zinc-700' : 'text-zinc-300'} />
+        <ArrowDown size={18} strokeWidth={2} className={isLight ? 'text-zinc-700' : 'text-zinc-400'} />
       )}
     </button>
+  );
+};
+
+// Mobile Expanded Sheet with swipe to close
+interface MobileExpandedSheetProps {
+  isLight: boolean;
+  onClose: () => void;
+  text_color: string;
+  textMuted: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  onSend: () => void;
+  canSend: boolean;
+  sendLabel: string;
+}
+
+const MobileExpandedSheet: React.FC<MobileExpandedSheetProps> = ({
+  isLight, onClose, text_color, value, onChange, placeholder, onSend, canSend, sendLabel
+}) => {
+  const [translateY, setTranslateY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(window.visualViewport?.height || window.innerHeight);
+  const startY = useRef(0);
+
+  // Track keyboard open/close via visualViewport
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      setViewportHeight(viewport.height);
+    };
+
+    viewport.addEventListener('resize', handleResize);
+    return () => viewport.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMove = (clientY: number) => {
+      const delta = clientY - startY.current;
+      setTranslateY(Math.max(0, delta));
+    };
+
+    const handleEnd = () => {
+      setIsDragging(false);
+      if (translateY > 120) {
+        onClose();
+      } else {
+        setTranslateY(0);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => handleMove(e.touches[0].clientY);
+    const onTouchEnd = () => handleEnd();
+
+    document.addEventListener('touchmove', onTouchMove);
+    document.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isDragging, translateY, onClose]);
+
+  const handleDragStart = (clientY: number) => {
+    setIsDragging(true);
+    startY.current = clientY;
+  };
+
+  // Calculate if keyboard is open (viewport significantly smaller than window)
+  const keyboardOpen = viewportHeight < window.innerHeight * 0.75;
+
+  return (
+    <div className="md:hidden fixed inset-0 z-[200]">
+      {/* Dark overlay behind */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      
+      {/* Sheet container - adapts to keyboard */}
+      <div 
+        className={`absolute inset-x-0 flex flex-col ${isLight ? 'bg-white border-t-2 border-x-2 border-gray-300' : 'bg-black border-t border-x border-zinc-700'} rounded-t-[20px] overflow-hidden`}
+        style={{ 
+          top: keyboardOpen ? '0' : '80px',
+          height: viewportHeight - (keyboardOpen ? 0 : 0),
+          transform: `translateY(${translateY}px)`,
+          transition: isDragging ? 'none' : 'transform 0.2s ease-out, top 0.2s ease-out'
+        }}
+      >
+        {/* Drag handle area */}
+        <div 
+          className="flex items-center justify-between px-4 pt-3 pb-2 cursor-grab active:cursor-grabbing select-none"
+          onTouchStart={(e) => handleDragStart(e.touches[0].clientY)}
+        >
+          <div className="w-8" />
+          <div className={`w-10 h-1 rounded-full ${isLight ? 'bg-zinc-300' : 'bg-zinc-600'}`} />
+          <button
+            onClick={onClose}
+            className={`${isLight ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-500 hover:text-zinc-300'} transition-colors`}
+          >
+            <Minimize2 size={20} />
+          </button>
+        </div>
+        
+        {/* Textarea */}
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') onClose();
+          }}
+          placeholder={placeholder}
+          autoFocus
+          className={`flex-1 w-full bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none text-[16px] leading-7 resize-none px-4 py-2 overflow-y-auto`}
+          style={{ fontSize: '16px' }}
+        />
+        
+        {/* Bottom bar */}
+        <div className={`flex items-center justify-end gap-2 px-4 py-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`} style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+          <button
+            onClick={onSend}
+            disabled={!canSend}
+            className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
+              canSend
+                ? (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black')
+                : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
+            }`}
+          >
+            {sendLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -247,11 +381,12 @@ export const InputArea: React.FC<InputAreaProps> = ({
   }, [text, editingText, editingMessageId]);
 
   const handleSend = () => {
-    if ((!text.trim() && attachments.length === 0) || isStreaming) return;
+    const trimmedText = text.trim();
+    if ((!trimmedText && attachments.length === 0) || isStreaming) return;
     haptic.medium();
     const effectiveLength = (settings.mode === ChatMode.RESEARCH || settings.mode === ChatMode.LABS) ? 'balanced' : settings.responseLength;
     const effectiveSearch = settings.mode === ChatMode.RESEARCH ? true : settings.webSearch;
-    onSend(text, attachments, effectiveSearch, settings.mode, effectiveLength);
+    onSend(trimmedText, attachments, effectiveSearch, settings.mode, effectiveLength);
     setText('');
     setAttachments([]);
   };
@@ -405,10 +540,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
     }
   };
 
+  // Supported file types
+  const SUPPORTED_ACCEPT = "image/*,audio/*,video/*,.pdf,.txt,.md,.json,.xml,.html,.css,.js,.ts,.py,.java,.c,.cpp,.h,.hpp,.rb,.go,.rs,.php,.swift,.kt,.csv,.yaml,.yml,.toml,.ini,.cfg,.sh,.bash,.sql";
+
   return (
     <div className="w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto px-2 pb-2 relative">
       {/* Hidden inputs */}
-      <input type="file" ref={fileInputRef} className="hidden" multiple onChange={(e) => handleFileSelect(e, 'file')} />
+      <input type="file" ref={fileInputRef} className="hidden" multiple accept={SUPPORTED_ACCEPT} onChange={(e) => handleFileSelect(e, 'file')} />
       <input type="file" ref={imageInputRef} className="hidden" accept="image/*" multiple onChange={(e) => handleFileSelect(e, 'image')} />
 
       {/* Attachments */}
@@ -438,67 +576,71 @@ export const InputArea: React.FC<InputAreaProps> = ({
           {/* Add to Chat Page */}
           {menuPage === 'add' && (
             <>
-              <div className="flex items-center px-4 pb-3">
+              <div className="flex items-center px-4 pb-2">
                 <CloseButton onClick={() => setMenuPage(null)} isLight={isLight} />
-                <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-8`}>
+                <span className={`flex-1 text-center text-[15px] font-medium ${text_color} -ml-8`}>
                   {isRu ? 'Добавить в чат' : 'Add to Chat'}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 px-4 pb-3">
+              <div className="grid grid-cols-3 gap-2 px-4 pb-2">
                 <button onClick={() => { imageInputRef.current?.click(); setMenuPage(null); }}
-                  className={`flex flex-col items-center justify-center gap-2 py-5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70`}>
-                  <Camera size={26} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
-                  <span className={`text-[13px] ${text_color}`}>{isRu ? 'Камера' : 'Camera'}</span>
+                  className={`flex flex-col items-center justify-center gap-1.5 py-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl active:opacity-70`}>
+                  <Camera size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
+                  <span className={`text-[12px] ${text_color}`}>{isRu ? 'Камера' : 'Camera'}</span>
                 </button>
                 <button onClick={() => { imageInputRef.current?.click(); setMenuPage(null); }}
-                  className={`flex flex-col items-center justify-center gap-2 py-5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70`}>
-                  <ImageIcon size={26} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
-                  <span className={`text-[13px] ${text_color}`}>{isRu ? 'Фото' : 'Photos'}</span>
+                  className={`flex flex-col items-center justify-center gap-1.5 py-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl active:opacity-70`}>
+                  <ImageIcon size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
+                  <span className={`text-[12px] ${text_color}`}>{isRu ? 'Фото' : 'Photos'}</span>
                 </button>
                 <button onClick={() => { fileInputRef.current?.click(); setMenuPage(null); }}
-                  className={`flex flex-col items-center justify-center gap-2 py-5 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70`}>
-                  <FileText size={26} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
-                  <span className={`text-[13px] ${text_color}`}>{isRu ? 'Файлы' : 'Files'}</span>
+                  className={`flex flex-col items-center justify-center gap-1.5 py-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl active:opacity-70`}>
+                  <FileText size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
+                  <span className={`text-[12px] ${text_color}`}>{isRu ? 'Файлы' : 'Files'}</span>
                 </button>
               </div>
-              <div className={`mx-4 mb-2 flex items-center justify-between py-3.5 px-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl`}>
-                <div className="flex items-center gap-3">
-                  <Globe size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
-                  <span className={`text-[15px] ${text_color}`}>{isRu ? 'Веб-поиск' : 'Web search'}</span>
+              <div className={`mx-4 mb-1.5 flex items-center justify-between py-2.5 px-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl`}>
+                <div className="flex items-center gap-2.5">
+                  <Globe size={18} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
+                  <span className={`text-[14px] ${text_color}`}>{isRu ? 'Веб-поиск' : 'Web search'}</span>
                 </div>
-                <button onClick={() => setSettings(s => ({ ...s, webSearch: !s.webSearch }))}
-                  className={`w-[51px] h-[31px] rounded-full p-[2px] transition-all ${settings.webSearch ? 'bg-blue-500' : (isLight ? 'bg-zinc-300' : 'bg-zinc-700')}`}>
-                  <div className={`w-[27px] h-[27px] rounded-full bg-white shadow-sm transition-transform ${settings.webSearch ? 'translate-x-5' : 'translate-x-0'}`} />
+                <button onClick={() => {
+                  const newSettings = { ...settings, webSearch: !settings.webSearch };
+                  setSettings(newSettings);
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+                }}
+                  className={`w-[44px] h-[26px] rounded-full p-[2px] transition-all ${settings.webSearch ? 'bg-blue-500' : (isLight ? 'bg-zinc-300' : 'bg-zinc-700')}`}>
+                  <div className={`w-[22px] h-[22px] rounded-full bg-white shadow-sm transition-transform ${settings.webSearch ? 'translate-x-[18px]' : 'translate-x-0'}`} />
                 </button>
               </div>
               <button 
                 onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPage('style'); }}
                 onClick={(e) => { e.stopPropagation(); setMenuPage('style'); }}
-                className={`mx-4 mb-2 w-[calc(100%-32px)] flex items-center justify-between py-3.5 px-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70 touch-manipulation`}>
-                <div className="flex items-center gap-3">
-                  <Sparkles size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
-                  <span className={`text-[15px] ${text_color}`}>{isRu ? 'Режим' : 'Mode'}</span>
+                className={`mx-4 mb-1.5 w-[calc(100%-32px)] flex items-center justify-between py-2.5 px-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl active:opacity-70 touch-manipulation`}>
+                <div className="flex items-center gap-2.5">
+                  <Sparkles size={18} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
+                  <span className={`text-[14px] ${text_color}`}>{isRu ? 'Режим' : 'Mode'}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className={`text-[15px] ${textMuted}`}>{getModeLabel()}</span>
-                  <ChevronRight size={18} className={textMuted} />
+                  <span className={`text-[14px] ${textMuted}`}>{getModeLabel()}</span>
+                  <ChevronRight size={16} className={textMuted} />
                 </div>
               </button>
               <button 
                 onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setMenuPage('length'); }}
                 onClick={(e) => { e.stopPropagation(); setMenuPage('length'); }}
-                className={`mx-4 w-[calc(100%-32px)] flex items-center justify-between py-3.5 px-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-xl active:opacity-70 touch-manipulation`}>
-                <div className="flex items-center gap-3">
-                  <Zap size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-400'} />
-                  <span className={`text-[15px] ${text_color}`}>{isRu ? 'Длина ответа' : 'Response length'}</span>
+                className={`mx-4 w-[calc(100%-32px)] flex items-center justify-between py-2.5 px-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl active:opacity-70 touch-manipulation`}>
+                <div className="flex items-center gap-2.5">
+                  <Zap size={18} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
+                  <span className={`text-[14px] ${text_color}`}>{isRu ? 'Длина ответа' : 'Response length'}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className={`text-[15px] ${textMuted}`}>
+                  <span className={`text-[14px] ${textMuted}`}>
                     {settings.responseLength === 'brief' ? (isRu ? 'Краткий' : 'Brief') : 
                      settings.responseLength === 'detailed' ? (isRu ? 'Подробный' : 'Detailed') : 
                      (isRu ? 'Баланс' : 'Balanced')}
                   </span>
-                  <ChevronRight size={18} className={textMuted} />
+                  <ChevronRight size={16} className={textMuted} />
                 </div>
               </button>
             </>
@@ -507,26 +649,31 @@ export const InputArea: React.FC<InputAreaProps> = ({
           {/* Style Selection Page */}
           {menuPage === 'style' && (
             <>
-              <div className="flex items-center px-4 pb-3">
+              <div className="flex items-center px-4 pb-2">
                 <CloseButton onClick={() => setMenuPage('add')} isLight={isLight} isBack />
-                <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-9`}>
+                <span className={`flex-1 text-center text-[15px] font-medium ${text_color} -ml-9`}>
                   {isRu ? 'Выбрать режим' : 'Choose style'}
                 </span>
               </div>
-              <div className={`mx-4 rounded-xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'}`}>
+              <div className={`mx-4 rounded-xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#111111]'}`}>
                 {[
-                  { mode: ChatMode.STANDARD, icon: <Zap size={18} />, label: isRu ? 'Стандарт' : 'Normal' },
-                  { mode: ChatMode.RESEARCH, icon: <BookOpen size={18} />, label: isRu ? 'Исследование' : 'Research' },
-                  { mode: ChatMode.LABS, icon: <FlaskConical size={18} />, label: isRu ? 'Лаборатория' : 'Labs' },
+                  { mode: ChatMode.STANDARD, icon: <Zap size={16} />, label: isRu ? 'Стандарт' : 'Normal' },
+                  { mode: ChatMode.RESEARCH, icon: <BookOpen size={16} />, label: isRu ? 'Исследование' : 'Research' },
+                  { mode: ChatMode.LABS, icon: <FlaskConical size={16} />, label: isRu ? 'Лаборатория' : 'Labs' },
                 ].map((item, i, arr) => (
                   <button key={item.mode}
-                    onClick={() => { setSettings(s => ({ ...s, mode: item.mode })); setMenuPage('add'); }}
-                    className={`w-full flex items-center justify-between py-3.5 px-4 active:opacity-70 touch-manipulation ${i < arr.length - 1 ? (isLight ? 'border-b border-zinc-100' : 'border-b border-zinc-800') : ''}`}>
-                    <div className="flex items-center gap-3">
-                      <span className={isLight ? 'text-zinc-500' : 'text-zinc-400'}>{item.icon}</span>
-                      <span className={`text-[15px] ${text_color}`}>{item.label}</span>
+                    onClick={() => { 
+                      const newSettings = { ...settings, mode: item.mode };
+                      setSettings(newSettings);
+                      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+                      setMenuPage('add'); 
+                    }}
+                    className={`w-full flex items-center justify-between py-2.5 px-3.5 active:opacity-70 touch-manipulation ${i < arr.length - 1 ? (isLight ? 'border-b border-zinc-100' : 'border-b border-zinc-800/50') : ''}`}>
+                    <div className="flex items-center gap-2.5">
+                      <span className={isLight ? 'text-zinc-500' : 'text-zinc-500'}>{item.icon}</span>
+                      <span className={`text-[14px] ${text_color}`}>{item.label}</span>
                     </div>
-                    {settings.mode === item.mode && <Check size={20} className="text-blue-500" />}
+                    {settings.mode === item.mode && <Check size={18} className="text-blue-500" />}
                   </button>
                 ))}
               </div>
@@ -536,23 +683,28 @@ export const InputArea: React.FC<InputAreaProps> = ({
           {/* Length Selection Page */}
           {menuPage === 'length' && (
             <>
-              <div className="flex items-center px-4 pb-3">
+              <div className="flex items-center px-4 pb-2">
                 <CloseButton onClick={() => setMenuPage('add')} isLight={isLight} isBack />
-                <span className={`flex-1 text-center text-[17px] font-semibold ${text_color} -ml-9`}>
+                <span className={`flex-1 text-center text-[15px] font-medium ${text_color} -ml-9`}>
                   {isRu ? 'Длина ответа' : 'Response length'}
                 </span>
               </div>
-              <div className={`mx-4 rounded-xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'}`}>
+              <div className={`mx-4 rounded-xl overflow-hidden ${isLight ? 'bg-white' : 'bg-[#111111]'}`}>
                 {[
                   { value: 'brief' as const, label: isRu ? 'Краткий' : 'Brief' },
                   { value: 'balanced' as const, label: isRu ? 'Баланс' : 'Balanced' },
                   { value: 'detailed' as const, label: isRu ? 'Подробный' : 'Detailed' },
                 ].map((item, i, arr) => (
                   <button key={item.value}
-                    onClick={() => { setSettings(s => ({ ...s, responseLength: item.value })); setMenuPage('add'); }}
-                    className={`w-full flex items-center justify-between py-3.5 px-4 active:opacity-70 touch-manipulation ${i < arr.length - 1 ? (isLight ? 'border-b border-zinc-100' : 'border-b border-zinc-800') : ''}`}>
-                    <span className={`text-[15px] ${text_color}`}>{item.label}</span>
-                    {settings.responseLength === item.value && <Check size={20} className="text-blue-500" />}
+                    onClick={() => { 
+                      const newSettings = { ...settings, responseLength: item.value };
+                      setSettings(newSettings);
+                      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+                      setMenuPage('add'); 
+                    }}
+                    className={`w-full flex items-center justify-between py-2.5 px-3.5 active:opacity-70 touch-manipulation ${i < arr.length - 1 ? (isLight ? 'border-b border-zinc-100' : 'border-b border-zinc-800/50') : ''}`}>
+                    <span className={`text-[14px] ${text_color}`}>{item.label}</span>
+                    {settings.responseLength === item.value && <Check size={18} className="text-blue-500" />}
                   </button>
                 ))}
               </div>
@@ -581,118 +733,110 @@ export const InputArea: React.FC<InputAreaProps> = ({
         </div>
       )}
 
-      {/* Expanded Input Modal - ChatGPT style */}
+      {/* Expanded Input Modal - Telegram style */}
       {isExpanded && (
-        <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center px-4 pb-4 md:pb-0" onClick={() => setIsExpanded(false)}>
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60" />
-          {/* Modal */}
-          <div 
-            className={`relative w-full max-w-2xl ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-2xl shadow-2xl overflow-hidden animate-slide-up`}
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: 'calc(100vh - 120px)' }}
-          >
-            {/* Close button - top right */}
-            <button
-              onClick={() => setIsExpanded(false)}
-              className={`absolute top-3 right-3 p-2 rounded-full ${isLight ? 'bg-gray-100 hover:bg-gray-200 text-gray-500' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'} transition-colors z-10`}
+        <>
+          {/* Mobile: sheet with rounded top, swipe to close */}
+          <MobileExpandedSheet 
+            isLight={isLight}
+            onClose={() => setIsExpanded(false)}
+            text_color={text_color}
+            textMuted={textMuted}
+            value={editingMessageId ? (editingText || '') : text}
+            onChange={(val) => editingMessageId ? onEditingTextChange?.(val) : setText(val)}
+            placeholder={editingMessageId ? (isRu ? 'Редактировать сообщение...' : 'Edit message...') : placeholderText}
+            onSend={() => {
+              if (editingMessageId) {
+                onSaveEdit?.();
+              } else {
+                handleSend();
+              }
+              setIsExpanded(false);
+            }}
+            canSend={!!(editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))}
+            sendLabel={editingMessageId ? (isRu ? 'Сохранить' : 'Save') : (isRu ? 'Отправить' : 'Send')}
+          />
+
+          {/* Desktop: wide modal like Telegram */}
+          <div className="hidden md:flex fixed inset-0 z-[200] items-center justify-center" onClick={() => setIsExpanded(false)}>
+            <div className="absolute inset-0 bg-black/60" />
+            <div 
+              className={`relative w-full max-w-4xl mx-4 ${isLight ? 'bg-white' : 'bg-[#1a1a1a]'} rounded-2xl shadow-2xl overflow-hidden animate-slide-up`}
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxHeight: 'calc(100vh - 120px)' }}
             >
-              <X size={18} />
-            </button>
-            
-            {/* Textarea */}
-            <textarea
-              value={editingMessageId ? (editingText || '') : text}
-              onChange={(e) => editingMessageId ? onEditingTextChange?.(e.target.value) : setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setIsExpanded(false);
-                }
-              }}
-              placeholder={editingMessageId ? (isRu ? 'Редактировать сообщение...' : 'Edit message...') : placeholderText}
-              autoFocus
-              className={`w-full bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none text-[16px] leading-7 resize-none p-4 pt-14 min-h-[200px] max-h-[60vh] overflow-y-auto`}
-              style={{ fontSize: '16px' }}
-            />
-            
-            {/* Bottom bar with send button */}
-            <div className={`flex items-center justify-end gap-2 px-4 py-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+              {/* Close button - top right */}
               <button
-                onClick={() => {
-                  if (editingMessageId) {
-                    onSaveEdit?.();
-                  } else {
-                    handleSend();
-                  }
-                  setIsExpanded(false);
-                }}
-                disabled={!(editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))}
-                className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
-                  (editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))
-                    ? (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black')
-                    : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
-                }`}
+                onClick={() => setIsExpanded(false)}
+                className={`absolute top-3 right-3 p-2 rounded-full ${isLight ? 'bg-gray-100 hover:bg-gray-200 text-gray-500' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400'} transition-colors z-10`}
               >
-                {editingMessageId ? (isRu ? 'Сохранить' : 'Save') : (isRu ? 'Отправить' : 'Send')}
+                <X size={18} />
               </button>
+              
+              {/* Textarea */}
+              <textarea
+                value={editingMessageId ? (editingText || '') : text}
+                onChange={(e) => editingMessageId ? onEditingTextChange?.(e.target.value) : setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsExpanded(false);
+                  }
+                }}
+                placeholder={editingMessageId ? (isRu ? 'Редактировать сообщение...' : 'Edit message...') : placeholderText}
+                autoFocus
+                className={`w-full bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none text-[16px] leading-7 resize-none p-4 pt-14 min-h-[200px] max-h-[60vh] overflow-y-auto`}
+                style={{ fontSize: '16px' }}
+              />
+              
+              {/* Bottom bar with send button */}
+              <div className={`flex items-center justify-end gap-2 px-4 py-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+                <button
+                  onClick={() => {
+                    if (editingMessageId) {
+                      onSaveEdit?.();
+                    } else {
+                      handleSend();
+                    }
+                    setIsExpanded(false);
+                  }}
+                  disabled={!(editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))}
+                  className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
+                    (editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))
+                      ? (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black')
+                      : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
+                  }`}
+                >
+                  {editingMessageId ? (isRu ? 'Сохранить' : 'Save') : (isRu ? 'Отправить' : 'Send')}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
-      {/* Active Settings Indicators - only for modes (web search visible in toggle) */}
-      {!editingMessageId && settings.mode !== ChatMode.STANDARD && (
-        <div className="flex items-center gap-2 mb-2 px-1">
-          {settings.mode === ChatMode.RESEARCH && (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isLight ? 'bg-purple-100 text-purple-700' : 'bg-purple-500/20 text-purple-400'}`}>
-              <BookOpen size={12} />
-              <span>{isRu ? 'Исследование' : 'Research'}</span>
-              <button 
-                onClick={() => setSettings(s => ({ ...s, mode: ChatMode.STANDARD }))}
-                className="ml-0.5 hover:opacity-70"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
-          {settings.mode === ChatMode.LABS && (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/20 text-green-400'}`}>
-              <FlaskConical size={12} />
-              <span>{isRu ? 'Лаборатория' : 'Labs'}</span>
-              <button 
-                onClick={() => setSettings(s => ({ ...s, mode: ChatMode.STANDARD }))}
-                className="ml-0.5 hover:opacity-70"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Input Bar - buttons stay at bottom, textarea grows up */}
-      <div className="flex items-end gap-2">
-        {/* Plus Button - Hidden in edit mode, stays at bottom */}
+      {/* Input Bar - ChatGPT style thin bar */}
+      <div className="flex items-center gap-2">
+        {/* Plus Button - Hidden in edit mode */}
         {!editingMessageId && (
           <button
             onClick={() => setMenuPage(menuPage ? null : 'add')}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0 self-end ${
-              isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-800 text-zinc-400'
-            } ${menuPage ? (isLight ? 'bg-gray-300' : 'bg-zinc-700 text-white') : ''}`}
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0 ${
+              isLight ? 'bg-gray-200 text-gray-600' : 'bg-[#111111] text-zinc-500'
+            } ${menuPage ? (isLight ? 'bg-gray-300' : 'bg-zinc-800 text-white') : ''}`}
           >
             <Plus size={20} strokeWidth={1.5} />
           </button>
         )}
 
-        {/* Main Input Container */}
-        <div className={`relative flex-1 ${bgCard} rounded-2xl flex items-center px-4 py-2.5 min-h-[44px] ${editingMessageId ? (isLight ? 'border border-gray-300' : 'border border-zinc-700') : ''}`}>
+        {/* Main Input Container - matte black, same height as plus button */}
+        <div className={`relative flex-1 ${isLight ? 'bg-gray-100' : 'bg-[#111111]'} rounded-full flex items-center px-3.5 min-h-[40px] ${editingMessageId ? (isLight ? 'border border-gray-300' : 'border border-zinc-800') : ''}`}>
           {/* Expand button - show when text has 4+ lines (newlines) */}
           {(((editingMessageId ? editingText : text) || '').split('\n').length >= 4) && (
             <button
               onClick={() => setIsExpanded(true)}
-              className={`absolute top-2 right-2 p-1.5 rounded-lg ${isLight ? 'bg-gray-200 text-gray-500 hover:bg-gray-300' : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'} transition-colors z-10`}
+              className={`absolute top-2 right-2 p-1 ${isLight ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-500 hover:text-zinc-300'} transition-colors z-10`}
             >
-              <Maximize2 size={14} />
+              <Maximize2 size={16} />
             </button>
           )}
           <textarea
@@ -703,6 +847,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (editingMessageId) {
+                  haptic.medium();
                   onSaveEdit?.();
                 } else {
                   handleSend();
@@ -715,46 +860,46 @@ export const InputArea: React.FC<InputAreaProps> = ({
             onFocus={onInputFocus}
             placeholder={editingMessageId ? (isRu ? 'Редактировать сообщение...' : 'Edit message...') : placeholderText}
             rows={1}
-            className={`flex-1 bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none max-h-32 scrollbar-hide text-[16px] leading-6 resize-none self-center`}
-            style={{ fontSize: '16px' }}
+            className={`flex-1 w-full bg-transparent ${text_color} placeholder-zinc-500 focus:outline-none max-h-32 scrollbar-hide text-[15px] leading-[22px] resize-none py-[11px] text-left`}
+            style={{ fontSize: '15px' }}
           />
 
           {/* Right Icons */}
-          <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
+          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
             {editingMessageId ? (
               /* Edit mode: show send arrow to save */
               <button 
-                onClick={onSaveEdit} 
+                onClick={() => { haptic.medium(); onSaveEdit?.(); }} 
                 disabled={!editingText?.trim()}
-                className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
                   editingText?.trim() 
                     ? (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black') 
-                    : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
+                    : (isLight ? 'bg-gray-300 text-gray-400' : 'bg-zinc-700 text-zinc-500')
                 }`}
               >
-                <ArrowUp size={18} strokeWidth={2.5} />
+                <ArrowUp size={16} strokeWidth={2.5} />
               </button>
             ) : isStreaming ? (
-              <button onClick={onStop} className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full">
-                <StopCircle size={16} fill="currentColor" />
+              <button onClick={onStop} className="w-7 h-7 flex items-center justify-center bg-red-500 text-white rounded-full">
+                <StopCircle size={14} fill="currentColor" />
               </button>
             ) : text.trim() || attachments.length > 0 ? (
-              <button onClick={handleSend} className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
-                <ArrowUp size={18} strokeWidth={2.5} />
+              <button onClick={handleSend} className={`w-7 h-7 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}>
+                <ArrowUp size={16} strokeWidth={2.5} />
               </button>
             ) : (
               <>
                 <button
                   onClick={startDictation}
-                  className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : textMuted}`}
+                  className={`w-7 h-7 flex items-center justify-center rounded-full transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : textMuted}`}
                 >
-                  <Mic size={18} />
+                  <Mic size={16} />
                 </button>
                 <button
                   onClick={onStartLiveMode}
-                  className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-800'}`}
+                  className={`w-7 h-7 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-800'}`}
                 >
-                  <AudioLines size={18} className={text_color} />
+                  <AudioLines size={16} className={text_color} />
                 </button>
               </>
             )}

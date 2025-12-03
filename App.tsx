@@ -21,7 +21,7 @@ const PROJECT_ICON_MAP: Record<string, React.FC<any>> = {
 const getProjectIcon = (iconName: string) => PROJECT_ICON_MAP[iconName] || Briefcase;
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
-  Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ArrowDown,
+  Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ChevronRight, ArrowDown,
   Search, Upload, X, PenSquare, Share2, FolderPlus, Tag, MoreVertical, Edit3
 } from 'lucide-react';
 
@@ -407,7 +407,36 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!settings.incognito && isInitialized) {
-        localStorage.setItem('neo_sessions', JSON.stringify(sessions));
+      try {
+        // Limit stored data - remove old messages if too large
+        const dataToStore = sessions.map(s => ({
+          ...s,
+          messages: s.messages.slice(-100).map(m => ({
+            ...m,
+            // Limit attachment data size
+            attachments: m.attachments?.map(a => ({
+              ...a,
+              data: a.data.length > 500000 ? '' : a.data // Remove large attachments from storage
+            }))
+          }))
+        }));
+        localStorage.setItem('neo_sessions', JSON.stringify(dataToStore));
+      } catch (e) {
+        // Storage quota exceeded - try to save without attachments
+        try {
+          const minimalData = sessions.map(s => ({
+            ...s,
+            messages: s.messages.slice(-50).map(m => ({
+              ...m,
+              attachments: [] // Remove all attachments
+            }))
+          }));
+          localStorage.setItem('neo_sessions', JSON.stringify(minimalData));
+        } catch {
+          // Still failing - clear old sessions
+          console.warn('Storage quota exceeded, clearing old data');
+        }
+      }
     }
   }, [sessions, settings.incognito, isInitialized]);
 
@@ -493,16 +522,18 @@ const App: React.FC = () => {
   const createSession = () => {
     haptic.medium();
     
-    // Check if current session is empty (no messages) and belongs to same project - reuse it
+    // Check if current session is empty (no messages) - just stay on it
     const currentSession = sessions.find(s => s.id === currentSessionId);
-    if (currentSession && currentSession.messages.length === 0 && currentSession.projectId === selectedProjectId) {
+    if (currentSession && currentSession.messages.length === 0) {
+      // Already on empty chat, just close menu
       setIsMobileMenuOpen(false);
       return;
     }
     
-    // Check if there's already an empty session in current project/no project
-    const emptySession = sessions.find(s => s.messages.length === 0 && s.projectId === selectedProjectId);
+    // Check if there's already an empty session without project
+    const emptySession = sessions.find(s => s.messages.length === 0 && !s.projectId);
     if (emptySession) {
+      setSelectedProjectId(null);
       setCurrentSessionId(emptySession.id);
       setIsMobileMenuOpen(false);
       return;
@@ -510,14 +541,14 @@ const App: React.FC = () => {
     
     const newSession: ChatSession = {
       id: Date.now().toString(),
-      title: selectedProjectId ? '' : t.newChat,
+      title: t.newChat,
       messages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      persona: DEFAULT_PERSONA,
-      projectId: selectedProjectId || undefined
+      persona: DEFAULT_PERSONA
     };
     setSessions(prev => [newSession, ...prev]);
+    setSelectedProjectId(null);
     setCurrentSessionId(newSession.id);
     setIsMobileMenuOpen(false);
     generateSuggestions();
@@ -722,19 +753,33 @@ const App: React.FC = () => {
 
   const isSupportedFile = useCallback((file: File): boolean => {
     const mimeType = file.type || '';
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    
+    // Explicitly reject archives and unsupported formats
+    const REJECTED_EXTENSIONS = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'exe', 'dll', 'so', 'dmg', 'iso', 'apk', 'ipa', 'deb', 'rpm'];
+    if (REJECTED_EXTENSIONS.includes(ext)) return false;
+    
+    // Reject by MIME type
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('compressed') || 
+        mimeType.includes('archive') || mimeType.includes('x-7z') || mimeType.includes('x-tar')) {
+      return false;
+    }
+    
+    // Exclude Office documents
+    if (mimeType.includes('officedocument') || mimeType.includes('msword') || 
+        mimeType.includes('excel') || mimeType.includes('powerpoint') ||
+        mimeType.includes('opendocument')) {
+      return false;
+    }
+    
     // Check by MIME type
     if (SUPPORTED_MIME_TYPES.some(t => mimeType === t || mimeType.startsWith(t.split('/')[0] + '/'))) {
-      // Exclude Office documents
-      if (mimeType.includes('officedocument') || mimeType.includes('msword') || 
-          mimeType.includes('excel') || mimeType.includes('powerpoint') ||
-          mimeType.includes('opendocument')) {
-        return false;
-      }
       return true;
     }
+    
     // Check by extension for text files
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext && TEXT_EXTENSIONS.includes(ext)) return true;
+    if (TEXT_EXTENSIONS.includes(ext)) return true;
+    
     return false;
   }, []);
 
@@ -1138,16 +1183,16 @@ const App: React.FC = () => {
         {/* Top bar - Search + New chat button */}
         <div className="p-3 flex items-center gap-2" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
             <div className="flex-1 relative">
-                <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-600'}`} strokeWidth={2} />
+                <Search size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-600'}`} strokeWidth={2} />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={settings.language === 'ru' ? 'Поиск' : 'Search'}
-                    className={`w-full rounded-full pl-9 pr-3 py-2 text-[14px] text-text focus:outline-none transition-colors ${
+                    className={`w-full rounded-full pl-10 pr-3 h-10 text-[14px] text-text focus:outline-none transition-colors ${
                         settings.theme === 'light' 
                             ? 'bg-gray-100 placeholder-gray-400 focus:bg-gray-200' 
-                            : 'bg-black border border-zinc-800/50 placeholder-zinc-600 focus:border-zinc-700'
+                            : 'bg-[#0a0a0a] placeholder-zinc-600 focus:bg-[#111111]'
                     }`}
                 />
                 {searchQuery && (
@@ -1158,14 +1203,14 @@ const App: React.FC = () => {
             </div>
             <button 
                 onClick={createSession}
-                className={`p-2 rounded-full transition-colors ${
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
                     settings.theme === 'light' 
                         ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 active:bg-gray-200 active:text-gray-700' 
-                        : 'bg-black border border-zinc-800/50 text-zinc-500 hover:border-zinc-700 hover:text-white active:text-white'
+                        : 'bg-[#0a0a0a] text-zinc-500 hover:bg-[#111111] hover:text-white active:text-white'
                 }`}
                 title={t.newChat}
             >
-                <PenSquare size={16} strokeWidth={1.5} />
+                <PenSquare size={18} strokeWidth={1.5} />
             </button>
         </div>
 
@@ -1240,22 +1285,28 @@ const App: React.FC = () => {
                                 onClick={() => {
                                     haptic.light();
                                     setSelectedProjectId(project.id);
-                                    // Auto-expand and select first chat
                                     setExpandedProjects(prev => new Set(prev).add(project.id));
+                                    // Select first chat or existing empty one
                                     if (projectChats.length > 0) {
                                         setCurrentSessionId(projectChats[0].id);
                                     } else {
-                                        const newSession: ChatSession = {
-                                            id: Date.now().toString(),
-                                            title: '',
-                                            messages: [],
-                                            createdAt: Date.now(),
-                                            updatedAt: Date.now(),
-                                            persona: DEFAULT_PERSONA,
-                                            projectId: project.id
-                                        };
-                                        setSessions(prev => [newSession, ...prev]);
-                                        setCurrentSessionId(newSession.id);
+                                        // Check if empty chat for this project already exists
+                                        const existingEmpty = sessions.find(s => s.projectId === project.id && s.messages.length === 0);
+                                        if (existingEmpty) {
+                                            setCurrentSessionId(existingEmpty.id);
+                                        } else {
+                                            const newSession: ChatSession = {
+                                                id: Date.now().toString(),
+                                                title: '',
+                                                messages: [],
+                                                createdAt: Date.now(),
+                                                updatedAt: Date.now(),
+                                                persona: DEFAULT_PERSONA,
+                                                projectId: project.id
+                                            };
+                                            setSessions(prev => [newSession, ...prev]);
+                                            setCurrentSessionId(newSession.id);
+                                        }
                                     }
                                     setIsMobileMenuOpen(false);
                                 }}
@@ -1269,6 +1320,13 @@ const App: React.FC = () => {
                                     e.stopPropagation();
                                     haptic.light();
                                     setSelectedProjectId(project.id);
+                                    // Check if empty chat for this project already exists
+                                    const existingEmpty = sessions.find(s => s.projectId === project.id && s.messages.length === 0);
+                                    if (existingEmpty) {
+                                        setCurrentSessionId(existingEmpty.id);
+                                        setIsMobileMenuOpen(false);
+                                        return;
+                                    }
                                     const newSession: ChatSession = {
                                         id: Date.now().toString(),
                                         title: '',
@@ -1539,17 +1597,17 @@ const App: React.FC = () => {
                     {showChatMenu && (
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
-                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl shadow-xl z-50 overflow-hidden animate-dropdown ${
-                                settings.theme === 'light' ? 'bg-white border border-gray-200' : 'bg-[#000000] border border-zinc-800'
+                            <div className={`absolute right-0 top-full mt-1 w-52 rounded-xl shadow-xl z-50 overflow-hidden animate-dropdown ${
+                                settings.theme === 'light' ? 'bg-white border border-gray-200' : 'bg-[#0a0a0a] border border-zinc-800/50'
                             }`}>
                                 <button
                                     onClick={() => { shareChat(); setShowChatMenu(false); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800'
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
                                     }`}
                                 >
-                                    <Share2 size={18} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'} />
-                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Поделиться' : 'Share'}</span>
+                                    <Share2 size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                    <span className="text-[14px]">{settings.language === 'ru' ? 'Поделиться' : 'Share'}</span>
                                 </button>
                                 <button
                                     onClick={() => {
@@ -1559,23 +1617,23 @@ const App: React.FC = () => {
                                         }
                                         setShowChatMenu(false);
                                     }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800'
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
                                     }`}
                                 >
-                                    <Edit3 size={18} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'} />
-                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Переименовать' : 'Rename'}</span>
+                                    <Edit3 size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                    <span className="text-[14px]">{settings.language === 'ru' ? 'Переименовать' : 'Rename'}</span>
                                 </button>
                                 <button
                                     onClick={() => { setIsDownloadModalOpen(true); setShowChatMenu(false); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800'
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
                                     }`}
                                 >
-                                    <Download size={18} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'} />
-                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Экспорт' : 'Export'}</span>
+                                    <Download size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                    <span className="text-[14px]">{settings.language === 'ru' ? 'Экспорт' : 'Export'}</span>
                                 </button>
-                                <div className={`border-t ${settings.theme === 'light' ? 'border-gray-100' : 'border-zinc-800'}`} />
+                                <div className={`border-t ${settings.theme === 'light' ? 'border-gray-100' : 'border-zinc-800/50'}`} />
                                 <button
                                     onClick={() => {
                                         if (currentSessionId && confirm(settings.language === 'ru' ? 'Удалить этот чат?' : 'Delete this chat?')) {
@@ -1589,12 +1647,12 @@ const App: React.FC = () => {
                                         }
                                         setShowChatMenu(false);
                                     }}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors text-red-500 ${
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors text-red-500 ${
                                         settings.theme === 'light' ? 'active:bg-red-50' : 'active:bg-red-500/10'
                                     }`}
                                 >
-                                    <Trash2 size={18} />
-                                    <span className="text-[15px]">{settings.language === 'ru' ? 'Удалить' : 'Delete'}</span>
+                                    <Trash2 size={16} />
+                                    <span className="text-[14px]">{settings.language === 'ru' ? 'Удалить' : 'Delete'}</span>
                                 </button>
                             </div>
                         </>
@@ -1631,19 +1689,19 @@ const App: React.FC = () => {
                             {settings.language === 'ru' ? `Привет, ${userProfile.name}` : `Hello, ${userProfile.name}`}
                         </h2>
                         
-                        <div className="flex flex-col gap-3 w-full max-w-md">
+                        <div className="flex flex-col gap-2 w-full max-w-md">
                             {randomSuggestions.map((item, i) => (
                                 <button 
                                     key={i}
                                     onClick={() => handleSendMessage(item.t, [], false, ChatMode.STANDARD, settings.responseLength || 'detailed')}
-                                    className={`text-left group px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98] ${
+                                    className={`text-left group px-3.5 py-2.5 rounded-xl transition-all active:scale-[0.98] ${
                                         settings.theme === 'light'
                                             ? 'bg-white hover:bg-gray-50 border border-gray-200'
-                                            : 'bg-[#141414] hover:bg-[#1a1a1a] border border-zinc-800'
+                                            : 'bg-[#0f0f0f] hover:bg-[#141414] border border-zinc-800/50'
                                     }`}
                                 >
-                                    <div className={`text-[15px] font-medium ${settings.theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{item.t}</div>
-                                    <div className={`text-[13px] mt-1 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'}`}>{item.d}</div>
+                                    <div className={`text-[14px] font-medium ${settings.theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{item.t}</div>
+                                    <div className={`text-[12px] mt-0.5 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'}`}>{item.d}</div>
                                 </button>
                             ))}
                         </div>
@@ -1680,13 +1738,13 @@ const App: React.FC = () => {
             {showScrollButton && (
                 <button 
                     onClick={scrollToBottom}
-                    className={`fixed bottom-28 left-1/2 -translate-x-1/2 p-3 rounded-full shadow-xl z-20 transition-all animate-fade-in ${
+                    className={`fixed bottom-28 left-1/2 -translate-x-1/2 p-2.5 rounded-full shadow-xl z-20 transition-all animate-fade-in ${
                         settings.theme === 'light' 
                             ? 'bg-white border border-gray-200 text-gray-700 active:bg-gray-100' 
-                            : 'bg-[#1a1a1a] border border-zinc-800 text-white active:bg-[#252525]'
+                            : 'bg-[#111111] border border-zinc-800/50 text-zinc-400 active:bg-[#1a1a1a]'
                     }`}
                 >
-                    <ArrowDown size={20} />
+                    <ArrowDown size={18} />
                 </button>
             )}
         </div>

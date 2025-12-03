@@ -115,75 +115,75 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
   const SelectedIconComponent = PROJECT_ICONS.find(i => i.name === selectedIcon)?.icon || Briefcase;
 
-  const bgMain = isLight ? 'bg-white' : 'bg-[#000000]';
-  const bgCard = isLight ? 'bg-zinc-100' : 'bg-[#1a1a1a]';
+  const bgMain = isLight ? 'bg-white' : 'bg-[#0a0a0a]';
+  const bgCard = isLight ? 'bg-zinc-100' : 'bg-[#111111]';
   const textColor = isLight ? 'text-zinc-900' : 'text-white';
-  const textMuted = isLight ? 'text-zinc-500' : 'text-zinc-400';
-  const borderColor = isLight ? 'border-zinc-200' : 'border-zinc-800';
+  const textMuted = isLight ? 'text-zinc-500' : 'text-zinc-500';
+  const borderColor = isLight ? 'border-zinc-200' : 'border-zinc-800/50';
 
   // Icon Picker Modal
   if (showIconPicker) {
     return (
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={() => setShowIconPicker(false)}>
-        <div className="absolute inset-0 bg-black/60" />
+        <div className="absolute inset-0 bg-black/70" />
         <div 
-          className={`relative w-full max-w-md ${bgMain} rounded-2xl overflow-hidden animate-slide-up`}
+          className={`relative w-full max-w-md ${bgMain} rounded-xl overflow-hidden animate-slide-up border ${borderColor}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-4">
-            <span className={`text-[17px] font-semibold ${textColor}`}>
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className={`text-[15px] font-medium ${textColor}`}>
               {isRu ? 'Выберите значок' : 'Choose icon'}
             </span>
             <button 
               onClick={() => setShowIconPicker(false)}
-              className={`px-4 py-1.5 rounded-full ${isLight ? 'bg-zinc-200' : 'bg-zinc-800'} ${textColor} text-sm font-medium`}
+              className={`px-3 py-1 rounded-full ${isLight ? 'bg-zinc-200' : 'bg-[#1a1a1a]'} ${textColor} text-[13px] font-medium`}
             >
               {isRu ? 'Готово' : 'Done'}
             </button>
           </div>
 
           {/* Preview */}
-          <div className="flex justify-center py-6">
+          <div className="flex justify-center py-4">
             <div 
-              className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: selectedColor === '#ffffff' ? (isLight ? '#e4e4e7' : '#27272a') : selectedColor + '20' }}
+              className="w-14 h-14 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: selectedColor === '#ffffff' ? (isLight ? '#e4e4e7' : '#1a1a1a') : selectedColor + '20' }}
             >
               <SelectedIconComponent 
-                size={32} 
+                size={28} 
                 style={{ color: selectedColor === '#ffffff' ? (isLight ? '#71717a' : '#a1a1aa') : selectedColor }} 
               />
             </div>
           </div>
 
           {/* Colors */}
-          <div className="flex justify-center gap-3 px-4 pb-6">
+          <div className="flex justify-center gap-2.5 px-4 pb-4">
             {PROJECT_COLORS.map(color => (
               <button
                 key={color}
                 onClick={() => setSelectedColor(color)}
-                className={`w-8 h-8 rounded-full transition-transform ${selectedColor === color ? 'ring-2 ring-offset-2 ring-offset-black ring-white scale-110' : ''}`}
+                className={`w-7 h-7 rounded-full transition-transform ${selectedColor === color ? 'ring-2 ring-offset-2 ring-offset-black ring-white scale-110' : ''}`}
                 style={{ 
                   backgroundColor: color === '#ffffff' ? 'transparent' : color,
-                  border: color === '#ffffff' ? '2px solid #71717a' : 'none'
+                  border: color === '#ffffff' ? '2px solid #52525b' : 'none'
                 }}
               />
             ))}
           </div>
 
           {/* Icons Grid */}
-          <div className="grid grid-cols-6 gap-2 px-4 pb-6 max-h-[300px] overflow-y-auto">
+          <div className="grid grid-cols-6 gap-1.5 px-4 pb-4 max-h-[260px] overflow-y-auto">
             {PROJECT_ICONS.map(({ name, icon: Icon }) => (
               <button
                 key={name}
                 onClick={() => setSelectedIcon(name)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${
                   selectedIcon === name 
-                    ? (isLight ? 'bg-zinc-200' : 'bg-zinc-700') 
+                    ? (isLight ? 'bg-zinc-200' : 'bg-zinc-800') 
                     : 'hover:bg-zinc-800/50'
                 }`}
               >
-                <Icon size={24} className={textMuted} />
+                <Icon size={20} className={textMuted} />
               </button>
             ))}
           </div>
@@ -194,45 +194,45 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-black/70" />
       <div 
-        className={`relative w-full max-w-md ${bgMain} rounded-2xl overflow-hidden animate-slide-up`}
+        className={`relative w-full max-w-md ${bgMain} rounded-xl overflow-hidden animate-slide-up border ${borderColor}`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-3">
           <button 
             onClick={onClose}
-            className={`w-9 h-9 rounded-full ${bgCard} flex items-center justify-center`}
+            className={`w-8 h-8 rounded-full ${bgCard} flex items-center justify-center`}
           >
-            <X size={18} className={textMuted} />
+            <X size={16} className={textMuted} />
           </button>
-          <span className={`text-[17px] font-semibold ${textColor}`}>
+          <span className={`text-[15px] font-medium ${textColor}`}>
             {isRu ? 'Новый проект' : 'New Project'}
           </span>
           <button 
             onClick={onClose}
-            className={`w-9 h-9 rounded-full flex items-center justify-center opacity-0`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center opacity-0`}
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Description */}
-        <p className={`text-center text-sm ${textMuted} px-8 pb-4`}>
+        <p className={`text-center text-[13px] ${textMuted} px-8 pb-3`}>
           {isRu 
             ? 'Проекты предоставляют общий контекст для чатов и файлов в одном месте.'
             : 'Projects provide shared context for chats and files in one place.'}
         </p>
 
         {/* Name Input */}
-        <div className={`mx-4 mb-4 flex items-center gap-3 px-4 py-3 ${bgCard} rounded-xl`}>
+        <div className={`mx-4 mb-3 flex items-center gap-2.5 px-3.5 py-2.5 ${bgCard} rounded-lg`}>
           <button 
             onClick={() => setShowIconPicker(true)}
             className="flex-shrink-0"
           >
             <SelectedIconComponent 
-              size={24} 
+              size={20} 
               style={{ color: selectedColor === '#ffffff' ? textMuted : selectedColor }} 
             />
           </button>
@@ -241,37 +241,37 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder={isRu ? 'Название проекта' : 'Project name'}
-            className={`flex-1 bg-transparent ${textColor} placeholder-zinc-500 focus:outline-none text-[16px]`}
+            className={`flex-1 bg-transparent ${textColor} placeholder-zinc-600 focus:outline-none text-[15px]`}
             autoFocus
           />
         </div>
 
         {/* Suggestions */}
-        <div className="flex gap-2 px-4 pb-6 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1.5 px-4 pb-4 overflow-x-auto scrollbar-hide">
           {SUGGESTED_PROJECTS.map((suggestion, i) => {
             const SugIcon = PROJECT_ICONS.find(ic => ic.name === suggestion.icon)?.icon || Briefcase;
             return (
               <button
                 key={i}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className={`flex items-center gap-2 px-3 py-2 ${bgCard} rounded-full whitespace-nowrap`}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 ${bgCard} rounded-full whitespace-nowrap`}
               >
-                <SugIcon size={16} style={{ color: suggestion.color }} />
-                <span className={`text-sm ${textColor}`}>{suggestion.name}</span>
+                <SugIcon size={14} style={{ color: suggestion.color }} />
+                <span className={`text-[13px] ${textColor}`}>{suggestion.name}</span>
               </button>
             );
           })}
         </div>
 
         {/* Create Button */}
-        <div className="px-4 pb-6">
+        <div className="px-4 pb-4">
           <button
             onClick={handleCreate}
             disabled={!name.trim()}
-            className={`w-full py-3.5 rounded-xl font-medium transition-all ${
+            className={`w-full py-2.5 rounded-lg font-medium text-[14px] transition-all ${
               name.trim()
-                ? 'bg-zinc-200 text-zinc-900 active:bg-zinc-300'
-                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                ? (isLight ? 'bg-zinc-200 text-zinc-900 active:bg-zinc-300' : 'bg-white text-black active:bg-zinc-100')
+                : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
             }`}
           >
             {isRu ? 'Создать проект' : 'Create Project'}

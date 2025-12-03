@@ -171,44 +171,44 @@ const SourcesCarousel = ({ sources, lang }: { sources: Array<{ title: string; ur
     );
 
     return (
-        <div className="mt-4 w-full">
+        <div className="mt-3 w-full">
             {/* Header - clickable to collapse/expand */}
-            <button 
-                onClick={toggleCollapsed}
-                className="flex items-center gap-2 px-1 py-1 w-full text-left group"
-            >
-                <ChevronRight 
-                    size={14} 
-                    className={`text-zinc-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} 
-                />
-                <BookOpen size={14} className="text-zinc-500" />
-                <span className="text-xs font-medium text-zinc-400">
-                    {lang === 'ru' ? 'Источники' : 'Sources'}
-                </span>
-                <span className="text-[10px] text-zinc-600 bg-zinc-800/50 px-1.5 py-0.5 rounded">
-                    {uniqueSources.length}
-                </span>
+            <div className="flex items-center gap-2 px-1 py-1 w-full">
+                <div 
+                    onClick={toggleCollapsed}
+                    className="flex items-center gap-2 cursor-pointer group"
+                >
+                    <ChevronRight 
+                        size={14} 
+                        className={`text-zinc-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} 
+                    />
+                    <BookOpen size={14} className="text-zinc-500" />
+                    <span className="text-[11px] font-medium text-zinc-500">
+                        {lang === 'ru' ? 'Источники' : 'Sources'}
+                    </span>
+                    <span className="text-[10px] text-zinc-600 bg-zinc-800/50 px-1.5 py-0.5 rounded">
+                        {uniqueSources.length}
+                    </span>
+                </div>
                 
                 {/* Scroll arrows - only when expanded */}
                 {!isCollapsed && (
-                    <div className="ml-auto hidden sm:flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                        <button 
+                    <div className="ml-auto hidden sm:flex items-center gap-1">
+                        <div 
                             onClick={() => scroll('left')}
-                            disabled={!canScrollLeft}
-                            className={`p-1 rounded transition-all ${canScrollLeft ? 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300' : 'text-zinc-700 cursor-default'}`}
+                            className={`p-1 rounded transition-all cursor-pointer ${canScrollLeft ? 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300' : 'text-zinc-700 cursor-default'}`}
                         >
-                            <ChevronLeft size={16} />
-                        </button>
-                        <button 
+                            <ChevronLeft size={14} />
+                        </div>
+                        <div 
                             onClick={() => scroll('right')}
-                            disabled={!canScrollRight}
-                            className={`p-1 rounded transition-all ${canScrollRight ? 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300' : 'text-zinc-700 cursor-default'}`}
+                            className={`p-1 rounded transition-all cursor-pointer ${canScrollRight ? 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300' : 'text-zinc-700 cursor-default'}`}
                         >
-                            <ChevronRight size={16} />
-                        </button>
+                            <ChevronRight size={14} />
+                        </div>
                     </div>
                 )}
-            </button>
+            </div>
             
             {/* Sources list - collapsible */}
             {!isCollapsed && (
@@ -238,23 +238,23 @@ const SourcesCarousel = ({ sources, lang }: { sources: Array<{ title: string; ur
                                 href={realUri} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="flex-shrink-0 w-44 sm:w-48 p-2.5 bg-[#0a0a0a] border border-zinc-800/50 rounded-xl hover:bg-[#141414] hover:border-zinc-700 transition-all group/source snap-start"
+                                className="flex-shrink-0 w-40 sm:w-44 p-2 bg-[#0a0a0a] border border-zinc-800/40 rounded-lg hover:bg-[#111111] hover:border-zinc-700/50 transition-all group/source snap-start"
                             >
                                 {/* Favicon + Domain */}
-                                <div className="flex items-center gap-2 mb-1.5">
+                                <div className="flex items-center gap-1.5 mb-1">
                                     <img 
                                         src={favicon} 
                                         alt="" 
-                                        className="w-4 h-4 rounded-full flex-shrink-0" 
+                                        className="w-3.5 h-3.5 rounded-full flex-shrink-0" 
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2371717a" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
                                         }} 
                                     />
-                                    <span className="text-[11px] text-zinc-500 truncate">{hostname}</span>
+                                    <span className="text-[10px] text-zinc-600 truncate">{hostname}</span>
                                 </div>
                                 
                                 {/* Title */}
-                                <div className="text-[13px] text-zinc-300 line-clamp-2 group-hover/source:text-white transition-colors leading-snug">
+                                <div className="text-[12px] text-zinc-400 line-clamp-2 group-hover/source:text-zinc-200 transition-colors leading-snug">
                                     {g.title || hostname}
                                 </div>
                             </a>
@@ -501,7 +501,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           className={`
             relative text-sm sm:text-[15px] leading-relaxed transition-all duration-200
             ${isUser 
-              ? `${bgUser} ${textMain} rounded-3xl px-4 py-2.5 max-w-[85%] break-words` 
+              ? `${isLight ? 'bg-gray-100' : 'bg-[#111111]'} ${textMain} rounded-2xl px-3.5 py-2 max-w-[85%] break-words` 
               : `${textMain} w-full`
             }
           `}
@@ -530,18 +530,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                                   <img 
                                       src={att.data} 
                                       alt={att.name} 
-                                      className="max-w-[280px] max-h-[200px] w-auto h-auto object-contain rounded-2xl"
+                                      className="max-w-[240px] max-h-[180px] w-auto h-auto object-contain rounded-xl"
                                   />
-                                  <div className="absolute inset-0 bg-black/0 group-hover/att:bg-black/10 transition-all rounded-2xl" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover/att:bg-black/10 transition-all rounded-xl" />
                               </div>
                           ) : (
-                              <div className={`flex items-center gap-3 px-4 py-3 min-w-[180px] max-w-[280px]`}>
-                                  <div className={`p-2.5 rounded-xl ${isLight ? 'bg-gray-200' : 'bg-white/10'} ${textMain} flex-shrink-0`}>
+                              <div className={`flex items-center gap-2.5 px-3 py-2.5 min-w-[160px] max-w-[240px]`}>
+                                  <div className={`p-2 rounded-lg ${isLight ? 'bg-gray-200' : 'bg-white/10'} ${textMain} flex-shrink-0`}>
                                       {getFileIcon(att.mimeType)}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                      <p className={`text-sm font-medium truncate ${textMain}`}>{att.name}</p>
-                                      <p className={`text-xs ${textSecondary}`}>
+                                      <p className={`text-[13px] font-medium truncate ${textMain}`}>{att.name}</p>
+                                      <p className={`text-[11px] ${textSecondary}`}>
                                           {att.mimeType.split('/')[1]?.toUpperCase() || 'FILE'}
                                       </p>
                                   </div>
@@ -771,7 +771,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           <div className="flex items-center gap-1 mt-1 ml-1 animate-fade-in opacity-80 hover:opacity-100 transition-opacity">
              <button 
                onClick={handleCopyMessage} 
-               className={`p-1.5 ${textSecondary} ${hoverBg} rounded-md transition-all`}
+               className={`p-1.5 ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'} rounded-md transition-all`}
                title={lang === 'ru' ? 'Копировать' : 'Copy'}
              >
                 {isCopiedMessage ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
@@ -781,7 +781,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
              {isUser && onEdit && onStartEdit && (
                <button 
                  onClick={onStartEdit}
-                 className={`p-1.5 ${textSecondary} ${hoverBg} rounded-md transition-all`}
+                 className={`p-1.5 ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'} rounded-md transition-all`}
                  title={lang === 'ru' ? 'Редактировать' : 'Edit'}
                >
                  <Edit2 size={14} />
@@ -790,7 +790,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
              
              <button 
                  onClick={onRegenerate} 
-                 className={`p-1.5 ${textSecondary} ${hoverBg} rounded-md transition-all`}
+                 className={`p-1.5 ${isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'} rounded-md transition-all`}
                  title={lang === 'ru' ? 'Перегенерировать' : 'Regenerate'}
              >
                  <RefreshCw size={14} />
@@ -800,7 +800,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
              {message.text && (
                <button 
                   onClick={handleToggleSpeak} 
-                  className={`p-1.5 rounded-md ${hoverBg} transition-all ${isPlaying ? `${textMain} animate-pulse` : textSecondary}`}
+                  className={`p-1.5 rounded-md transition-all ${isPlaying ? `${textMain} animate-pulse` : (isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}`}
                   title={isPlaying ? (lang === 'ru' ? 'Стоп' : 'Stop') : (lang === 'ru' ? 'Озвучить' : 'Speak')}
                >
                   {isPlaying ? <Square size={14} fill="currentColor"/> : <Volume2 size={14} />}
@@ -811,20 +811,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                  <>
                     <button 
                         onClick={() => onRate('like')} 
-                        className={`p-1.5 rounded-md ${hoverBg} transition-all ${message.rating === 'like' ? 'text-green-500' : textSecondary}`}
+                        className={`p-1.5 rounded-md transition-all ${message.rating === 'like' ? 'text-green-500' : (isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}`}
                     >
                         <ThumbsUp size={14} />
                     </button>
                     <button 
                         onClick={() => onRate('dislike')} 
-                        className={`p-1.5 rounded-md ${hoverBg} transition-all ${message.rating === 'dislike' ? 'text-red-500' : textSecondary}`}
+                        className={`p-1.5 rounded-md transition-all ${message.rating === 'dislike' ? 'text-red-500' : (isLight ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800')}`}
                     >
                         <ThumbsDown size={14} />
                     </button>
                  </>
              )}
-             
-
           </div>
         )}
 
@@ -835,19 +833,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Follow-up Questions - Perplexity style */}
         {message.suggestedQuestions && message.suggestedQuestions.length > 0 && !message.isThinking && onFollowUpClick && (
-          <div className="mt-4 w-full">
-            <div className={`text-xs font-medium ${textSecondary} mb-2 px-1`}>
+          <div className="mt-3 w-full">
+            <div className={`text-[11px] font-medium ${textSecondary} mb-1.5 px-1`}>
               {lang === 'ru' ? 'Связанные вопросы' : 'Related questions'}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {message.suggestedQuestions.map((q, i) => (
                 <button
                   key={i}
                   onClick={() => onFollowUpClick(q)}
-                  className={`px-3 py-2 text-sm rounded-xl border transition-all ${
+                  className={`px-2.5 py-1.5 text-[13px] rounded-lg border transition-all ${
                     isLight 
                       ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300' 
-                      : 'bg-[#1a1a1a] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:border-zinc-700'
+                      : 'bg-[#0f0f0f] border-zinc-800/50 text-zinc-400 hover:bg-[#141414] hover:border-zinc-700'
                   }`}
                 >
                   {q}

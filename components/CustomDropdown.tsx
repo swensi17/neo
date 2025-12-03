@@ -46,14 +46,14 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({ options, value, 
     opt.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Theme classes
-  const bgMain = isLight ? 'bg-white' : 'bg-background';
-  const bgSurface = isLight ? 'bg-gray-50' : 'bg-surface';
+  // Theme classes - matte black style
+  const bgMain = isLight ? 'bg-white' : 'bg-[#0a0a0a]';
+  const bgSurface = isLight ? 'bg-gray-50' : 'bg-[#111111]';
   const textMain = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-500' : 'text-white/50';
-  const border = isLight ? 'border-gray-200' : 'border-white/10';
-  const hoverBg = isLight ? 'hover:bg-gray-50' : 'hover:bg-white/5';
-  const activeBg = isLight ? 'bg-gray-100' : 'bg-white/10';
+  const textSecondary = isLight ? 'text-gray-500' : 'text-zinc-500';
+  const border = isLight ? 'border-gray-200' : 'border-zinc-800/50';
+  const hoverBg = isLight ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]';
+  const activeBg = isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]';
 
   return (
     <div className="relative w-full" ref={dropdownRef}>

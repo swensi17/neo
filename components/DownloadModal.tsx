@@ -39,17 +39,17 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, o
   const bgSurface = isLight ? 'bg-gray-100' : 'bg-white/5';
 
   return (
-    <div className={`fixed inset-0 z-[110] flex items-center justify-center ${isLight ? 'bg-black/50' : 'bg-black/90'} backdrop-blur-sm animate-fade-in p-4`}>
-      <div className={`${bgMain} w-full max-w-sm rounded-2xl border ${border} shadow-2xl animate-slide-up flex flex-col`}>
+    <div className={`fixed inset-0 z-[110] flex items-center justify-center ${isLight ? 'bg-black/50' : 'bg-black/80'} backdrop-blur-sm animate-fade-in p-4`}>
+      <div className={`${isLight ? 'bg-white' : 'bg-[#0a0a0a]'} w-full max-w-sm rounded-xl border ${isLight ? 'border-gray-200' : 'border-zinc-800/50'} shadow-2xl animate-slide-up flex flex-col`}>
         
-        <div className={`flex justify-between items-center p-5 border-b ${border} shrink-0 rounded-t-2xl`}>
-          <h2 className={`text-xl font-semibold ${textMain}`}>{t.download}</h2>
-          <button onClick={onClose} className={`p-2 ${hoverBg} rounded-full ${textSecondary} transition-colors`}>
-            <X size={20} />
+        <div className={`flex justify-between items-center p-4 border-b ${isLight ? 'border-gray-200' : 'border-zinc-800/50'} shrink-0 rounded-t-xl`}>
+          <h2 className={`text-lg font-medium ${textMain}`}>{t.download}</h2>
+          <button onClick={onClose} className={`p-1.5 ${hoverBg} rounded-full ${textSecondary} transition-colors`}>
+            <X size={18} />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 space-y-4">
             <CustomDropdown 
                 label={t.exportFormat}
                 value={selectedFormat}
@@ -59,18 +59,18 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, o
                 lang={lang}
             />
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-1">
                 <button 
                     onClick={onClose}
-                    className={`flex-1 py-3.5 rounded-xl ${bgSurface} border ${border} ${textMain} font-medium ${hoverBg} transition-all text-base`}
+                    className={`flex-1 py-2.5 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-[#111111]'} border ${isLight ? 'border-gray-200' : 'border-zinc-800/50'} ${textMain} font-medium ${hoverBg} transition-all text-[14px]`}
                 >
                     {t.cancel}
                 </button>
                 <button 
                     onClick={() => onDownload(selectedFormat as any)}
-                    className={`flex-1 py-3.5 rounded-xl ${isLight ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-white/90'} font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-base`}
+                    className={`flex-1 py-2.5 rounded-lg ${isLight ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-black hover:bg-zinc-100'} font-medium transition-all shadow-lg flex items-center justify-center gap-2 text-[14px]`}
                 >
-                    <Download size={20} />
+                    <Download size={16} />
                     {t.downloadBtn}
                 </button>
             </div>
