@@ -88,7 +88,9 @@ const DraggableSheet: React.FC<DraggableSheetProps> = ({ children, isLight, onCl
             paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
             transform: `translateY(${translateY}px)`,
             transition: isDragging ? 'none' : 'transform 0.2s ease-out'
-          }}>
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}>
           {/* Drag Handle */}
           <div 
             className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing select-none"
@@ -223,18 +225,16 @@ export const InputArea: React.FC<InputAreaProps> = ({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  // Close menu on outside click
+  // Close menu on outside click - only for desktop, mobile uses overlay
   useEffect(() => {
-    const handleClick = (e: MouseEvent | TouchEvent) => {
+    const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuPage(null);
       }
     };
     document.addEventListener('mousedown', handleClick);
-    document.addEventListener('touchstart', handleClick);
     return () => {
       document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('touchstart', handleClick);
     };
   }, []);
 
