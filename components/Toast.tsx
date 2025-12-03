@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Check, AlertCircle, Info } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -20,12 +20,27 @@ export const Toast: React.FC<ToastProps> = ({
   duration = 3000,
   isLight = false 
 }) => {
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (isOpen && duration > 0) {
-      const timer = setTimeout(onClose, duration);
-      return () => clearTimeout(timer);
+      // Clear any existing timer
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      timerRef.current = setTimeout(() => {
+        onCloseRef.current();
+      }, duration);
+      
+      return () => {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
+      };
     }
-  }, [isOpen, duration, onClose]);
+  }, [isOpen, message, duration]);
 
   if (!isOpen) return null;
 
