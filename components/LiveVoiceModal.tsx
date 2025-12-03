@@ -18,16 +18,12 @@ interface LiveVoiceModalProps {
     incognito?: boolean;
 }
 
-// Gemini-style wave animation
-const WaveAnimation = ({ isActive, audioLevel }: { isActive: boolean; audioLevel: number }) => {
+// Gemini-style wave animation - only moves with real audio
+const WaveAnimation = ({ audioLevel }: { audioLevel: number }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>(0);
     const timeRef = useRef(0);
-    const audioRef = useRef(0);
-
-    useEffect(() => {
-        audioRef.current = audioLevel;
-    }, [audioLevel]);
+    const smoothAudioRef = useRef(0);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -43,40 +39,53 @@ const WaveAnimation = ({ isActive, audioLevel }: { isActive: boolean; audioLevel
         window.addEventListener('resize', resize);
 
         const animate = () => {
-            timeRef.current += 0.02;
+            // Smooth audio interpolation
+            smoothAudioRef.current += (audioLevel - smoothAudioRef.current) * 0.15;
+            const audio = smoothAudioRef.current;
+            
+            // Only animate time when there's audio
+            if (audio > 0.02) {
+                timeRef.current += 0.03 + audio * 0.05;
+            }
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const w = canvas.width;
             const h = canvas.height;
-            const audio = audioRef.current;
-            const intensity = isActive ? 0.3 + audio * 0.7 : 0.1;
+            
+            // Wave only visible and moving when audio is present
+            const intensity = audio * 1.5;
+            if (intensity < 0.01) {
+                animationRef.current = requestAnimationFrame(animate);
+                return;
+            }
 
             // Draw multiple wave layers
             for (let layer = 0; layer < 3; layer++) {
                 const layerOffset = layer * 0.3;
-                const alpha = (0.4 - layer * 0.1) * intensity;
+                const alpha = Math.min(0.6, (0.3 - layer * 0.08) * intensity);
                 
                 ctx.beginPath();
                 ctx.moveTo(0, h);
                 
                 for (let x = 0; x <= w; x += 4) {
                     const normalX = x / w;
-                    const wave1 = Math.sin(normalX * 4 + timeRef.current * 2 + layerOffset) * 30;
-                    const wave2 = Math.sin(normalX * 6 + timeRef.current * 1.5 + layerOffset) * 20;
-                    const wave3 = Math.sin(normalX * 8 + timeRef.current * 3 + layerOffset) * 15;
-                    const audioWave = audio * Math.sin(normalX * 10 + timeRef.current * 4) * 40;
+                    // Waves driven by audio level
+                    const wave1 = Math.sin(normalX * 4 + timeRef.current * 2 + layerOffset) * 25 * audio;
+                    const wave2 = Math.sin(normalX * 6 + timeRef.current * 1.5 + layerOffset) * 18 * audio;
+                    const wave3 = Math.sin(normalX * 10 + timeRef.current * 3 + layerOffset) * 12 * audio;
                     
-                    const y = h - 100 - (wave1 + wave2 + wave3 + audioWave) * intensity;
+                    const y = h - 80 - (wave1 + wave2 + wave3);
                     ctx.lineTo(x, y);
                 }
                 
                 ctx.lineTo(w, h);
                 ctx.closePath();
                 
-                const gradient = ctx.createLinearGradient(0, h - 200, 0, h);
+                const gradient = ctx.createLinearGradient(0, h - 150, 0, h);
                 gradient.addColorStop(0, `rgba(34, 211, 238, ${alpha})`);
-                gradient.addColorStop(0.5, `rgba(59, 130, 246, ${alpha * 0.8})`);
-                gradient.addColorStop(1, `rgba(99, 102, 241, ${alpha * 0.5})`);
+                gradient.addColorStop(0.5, `rgba(59, 130, 246, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(99, 102, 241, ${alpha * 0.4})`);
                 ctx.fillStyle = gradient;
                 ctx.fill();
             }
@@ -89,13 +98,13 @@ const WaveAnimation = ({ isActive, audioLevel }: { isActive: boolean; audioLevel
             cancelAnimationFrame(animationRef.current);
             window.removeEventListener('resize', resize);
         };
-    }, [isActive]);
+    }, [audioLevel]);
 
     return (
         <canvas 
             ref={canvasRef} 
             className="absolute bottom-0 left-0 w-full pointer-events-none"
-            style={{ height: 150 }}
+            style={{ height: 120 }}
         />
     );
 };
@@ -552,39 +561,38 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
 
 
     return (
-        <div className="fixed inset-0 z-[200] bg-black flex flex-col">
-            {/* Video preview - full screen */}
+        <div className="fixed inset-0 z-[200] bg-black">
+            {/* Video preview - full screen, stops before controls */}
             <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className={`absolute inset-0 w-full h-full object-cover ${videoMode === 'camera' && facingMode === 'user' ? 'scale-x-[-1]' : ''} ${videoMode === 'none' ? 'hidden' : ''}`}
+                className={`absolute top-0 left-0 right-0 object-cover ${videoMode === 'camera' && facingMode === 'user' ? 'scale-x-[-1]' : ''} ${videoMode === 'none' ? 'hidden' : ''}`}
+                style={{ height: 'calc(100% - 100px)' }}
             />
 
             {/* Header */}
-            <div className="relative z-10 flex items-center justify-center pt-4" style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
+            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center pt-4" style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
                 <div className="flex items-center gap-2 text-white">
-                    <div className="flex items-center gap-1">
-                        <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`} />
-                    </div>
+                    <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`} />
                     <span className="text-sm font-medium">Live</span>
                 </div>
                 
-                {/* Switch camera button (only when camera is active) */}
+                {/* Switch camera button */}
                 {videoMode === 'camera' && (
                     <button
                         onClick={switchCamera}
-                        className="absolute right-4 p-2 rounded-full bg-black/30 backdrop-blur-sm text-white"
+                        className="absolute right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
                     >
-                        <RotateCcw size={20} />
+                        <RotateCcw size={18} />
                     </button>
                 )}
             </div>
 
             {/* Transcript overlay */}
             {transcript && (
-                <div className="absolute top-20 left-0 right-0 px-6 z-10">
+                <div className="absolute top-20 left-0 right-0 px-6 z-20">
                     <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-lg mx-auto">
                         <p className="text-white text-center text-sm leading-relaxed">{transcript}</p>
                     </div>
@@ -593,65 +601,66 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
 
             {/* Center content when no video */}
             {videoMode === 'none' && (
-                <div className="flex-1 flex flex-col items-center justify-center">
-                    <p className="text-white/60 text-sm">{statusText}</p>
+                <div className="absolute inset-0 flex items-center justify-center" style={{ bottom: 100 }}>
+                    <p className="text-white/50 text-sm">{statusText}</p>
                 </div>
             )}
 
-            {/* Wave animation at bottom */}
-            <WaveAnimation isActive={status === 'connected' && !isPaused} audioLevel={audioLevel} />
+            {/* Wave animation - above controls */}
+            <div className="absolute bottom-[100px] left-0 right-0 h-[120px] overflow-hidden pointer-events-none">
+                <WaveAnimation audioLevel={audioLevel} />
+            </div>
 
-
-            {/* Bottom controls - Gemini style */}
+            {/* Bottom controls - FIXED at bottom */}
             <div 
-                className="relative z-10 pb-8 px-6"
-                style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom))' }}
+                className="absolute bottom-0 left-0 right-0 z-30 bg-black"
+                style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
             >
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center gap-3 py-4">
                     {/* Camera button */}
                     <button
                         onClick={toggleCamera}
-                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${
                             videoMode === 'camera' 
                                 ? 'bg-white text-black' 
-                                : 'bg-[#1a1a1a] border border-zinc-700 text-white'
+                                : 'bg-[#1a1a1a] text-zinc-400'
                         }`}
                     >
-                        <Camera size={22} />
+                        <Camera size={20} />
                     </button>
 
                     {/* Screen share button (desktop only) */}
                     {!isMobile && (
                         <button
                             onClick={toggleScreen}
-                            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${
                                 videoMode === 'screen' 
                                     ? 'bg-white text-black' 
-                                    : 'bg-[#1a1a1a] border border-zinc-700 text-white'
+                                    : 'bg-[#1a1a1a] text-zinc-400'
                             }`}
                         >
-                            <Monitor size={22} />
+                            <Monitor size={20} />
                         </button>
                     )}
 
                     {/* Pause/Play button */}
                     <button
                         onClick={togglePause}
-                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all active:scale-95 ${
                             isPaused 
-                                ? 'bg-[#1a1a1a] border border-zinc-700 text-white' 
-                                : 'bg-[#1a1a1a] border border-zinc-700 text-white'
+                                ? 'bg-zinc-700 text-white' 
+                                : 'bg-[#1a1a1a] text-zinc-400'
                         }`}
                     >
-                        {isPaused ? <Play size={22} /> : <Pause size={22} />}
+                        {isPaused ? <Play size={20} /> : <Pause size={20} />}
                     </button>
 
                     {/* Close button */}
                     <button
                         onClick={() => { stopSession(); onClose(); }}
-                        className="w-14 h-14 rounded-full bg-red-500 flex items-center justify-center text-white"
+                        className="w-12 h-12 rounded-2xl bg-red-500/90 flex items-center justify-center text-white active:scale-95 transition-transform"
                     >
-                        <X size={24} />
+                        <X size={20} />
                     </button>
                 </div>
             </div>
