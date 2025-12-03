@@ -1,11 +1,4 @@
-<p align="center">
-  <img src="public/logo-icon.svg" alt="NEO Logo" width="120" height="120"/>
-</p>
-
-<p align="center">
-  <img src="public/logo-dark.svg" alt="NEO Chat" width="280"/>
-</p>
-
+[
 <p align="center">
   <strong>🚀 AI-ассистент нового поколения на базе Google Gemini 2.5</strong>
 </p>
@@ -305,3 +298,4 @@ git push origin feature/amazing-feature
 <p align="center">
   Made with ❤️ by <a href="https://github.com/swensi17">swensi17</a>
 </p>
+](https://raw.githubusercontent.com/swensi17/neo/main/public/logo-icon.svg)
