@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message, Role, UserProfile, ChatMode, TRANSLATIONS } from '../types';
-import { Copy, RefreshCw, Volume2, Check, Sparkles, ThumbsUp, ThumbsDown, Square, BookOpen, FlaskConical, ChevronLeft, ChevronRight, Link as LinkIcon, ExternalLink, Play, FileCode, FileText, Image as ImageIcon, Download, Edit2, X, Trash2 } from 'lucide-react';
+import { Copy, RefreshCw, Volume2, Check, Sparkles, ThumbsUp, ThumbsDown, Square, BookOpen, FlaskConical, ChevronLeft, ChevronRight, Link as LinkIcon, ExternalLink, Play, FileCode, FileText, Image as ImageIcon, Download, Edit2, X } from 'lucide-react';
 import { ThinkingIndicator } from './ThinkingIndicator';
 
 interface MessageBubbleProps {
@@ -689,16 +689,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                  </>
              )}
              
-             {/* Delete button - desktop only */}
-             {onDelete && (
-               <button 
-                 onClick={onDelete}
-                 className={`hidden md:block p-1.5 ${textSecondary} hover:text-red-500 ${hoverBg} rounded-md transition-all`}
-                 title={lang === 'ru' ? 'Удалить' : 'Delete'}
-               >
-                 <Trash2 size={14} />
-               </button>
-             )}
+
           </div>
         )}
 
