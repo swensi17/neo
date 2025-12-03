@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Paperclip, StopCircle, X, AudioLines, ArrowUp, Zap, BookOpen, FlaskConical, AlignLeft, AlignCenter, AlignJustify, FileText, Image as ImageIcon, FileCode, Check, ChevronDown, Search } from 'lucide-react';
 import { Attachment, ChatMode, TRANSLATIONS, InterfaceLanguage } from '../types';
+import { haptic } from '../utils/haptic';
 
 const STORAGE_KEY = 'neo_input_settings';
 
@@ -87,6 +88,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
   const handleSend = () => {
     if ((!text.trim() && attachments.length === 0) || isStreaming) return;
+    haptic.medium();
     onSend(text, attachments, useWebSearch, currentMode, responseLength);
     setText(''); setAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
@@ -164,6 +166,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const removeAttachment = (index: number) => setAttachments(prev => prev.filter((_, i) => i !== index));
 
   const startDictation = () => {
+    haptic.medium();
     if (isRecording) { recognitionRef.current?.stop(); setIsRecording(false); return; }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -210,7 +213,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
           ].map((item) => (
             <button
               key={item.m}
-              onClick={() => { setCurrentMode(item.m); setShowModeMenu(false); if (item.m === ChatMode.RESEARCH) setUseWebSearch(true); }}
+              onClick={() => { haptic.light(); setCurrentMode(item.m); setShowModeMenu(false); if (item.m === ChatMode.RESEARCH) setUseWebSearch(true); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${currentMode === item.m ? `${activeBg} ${textMain}` : `${textSecondary} ${hoverBg}`}`}
             >
               <div className="flex items-center gap-2">{item.icon}<span>{item.label}</span></div>

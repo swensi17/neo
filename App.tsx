@@ -9,6 +9,7 @@ import { LiveVoiceModal } from './components/LiveVoiceModal';
 import { DownloadModal } from './components/DownloadModal';
 import { CodePreviewPanel, extractCodeForPreview } from './components/CodePreviewPanel';
 import { Toast, ToastType } from './components/Toast';
+import { haptic } from './utils/haptic';
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
   Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ArrowDown,
@@ -49,6 +50,9 @@ const App: React.FC = () => {
   });
   
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
+    if (type === 'success') haptic.success();
+    else if (type === 'error') haptic.error();
+    else haptic.light();
     setToast({ message, type, isOpen: true });
   }, []);
   
@@ -246,10 +250,11 @@ const App: React.FC = () => {
   };
 
   const createSession = () => {
+    haptic.medium();
+    
     // Check if current session is empty (no messages) - reuse it instead of creating new
     const currentSession = sessions.find(s => s.id === currentSessionId);
     if (currentSession && currentSession.messages.length === 0) {
-      // Already have an empty session, just switch to it
       setIsMobileMenuOpen(false);
       return;
     }
@@ -377,6 +382,7 @@ const App: React.FC = () => {
 
   // Share chat - create shareable link with chat data encoded in URL
   const shareChat = async () => {
+    haptic.light();
     const session = getCurrentSession();
     if (!session || session.messages.length === 0) {
       showToast(settings.language === 'ru' ? 'Нечего делиться — чат пуст' : 'Nothing to share — chat is empty', 'info');
