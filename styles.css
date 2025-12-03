@@ -22,6 +22,29 @@ html, body {
   color: var(--text);
   overflow: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* iOS PWA fixes */
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS Safe Areas for PWA */
+html {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Prevent iOS zoom on input focus */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Fix iOS PWA viewport height */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
 }
 
 *::selection {
