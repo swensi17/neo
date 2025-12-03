@@ -90,6 +90,7 @@ export interface AppSettings {
   chatMode: ChatMode;
   adultMode: boolean; // 18+ mode
   knowledgeBase: KnowledgeItem[]; // Separate knowledge base
+  soundEnabled: boolean; // Sound notifications
 }
 
 // Simple Translation Dictionary

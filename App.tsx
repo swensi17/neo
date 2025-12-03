@@ -78,7 +78,8 @@ const App: React.FC = () => {
         webSearchEnabled: true,
         chatMode: ChatMode.STANDARD,
         adultMode: false,
-        knowledgeBase: []
+        knowledgeBase: [],
+        soundEnabled: true
     };
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
@@ -558,7 +559,9 @@ const App: React.FC = () => {
       });
       
       // Play notification sound when response is complete
-      playNotificationSound();
+      if (settings.soundEnabled) {
+        playNotificationSound();
+      }
 
     } catch (e) {
       console.error(e);

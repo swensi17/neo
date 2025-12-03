@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, AppSettings, TRANSLATIONS, InterfaceLanguage, ApiKey, KnowledgeItem } from '../types';
-import { X, Upload, User, Moon, Sun, Globe, Shield, Trash2, Sliders, FileText, Plus, Key, Check, AlertCircle, Loader2, Search, Sparkles, ChevronDown, ExternalLink } from 'lucide-react';
+import { X, Upload, User, Moon, Sun, Globe, Shield, Trash2, Sliders, FileText, Plus, Key, Check, AlertCircle, Loader2, Search, Sparkles, ChevronDown, ExternalLink, Volume2, VolumeX } from 'lucide-react';
 import { CustomDropdown } from './CustomDropdown';
 import { getApiKeys, saveApiKeys, validateApiKey } from '../services/geminiService';
 
@@ -575,6 +575,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const renderGeneral = () => (
     <div className="space-y-5">
+      {/* Sound */}
+      <div className={`${bgInput} border ${border} rounded-xl p-4 flex items-center justify-between gap-3`}>
+        <div className="flex items-center gap-3 min-w-0">
+          {settings.soundEnabled ? <Volume2 size={18} className={textSecondary} /> : <VolumeX size={18} className={textSecondary} />}
+          <div>
+            <div className={`font-medium ${textMain} text-sm`}>{isRu ? 'Звуковые уведомления' : 'Sound Notifications'}</div>
+            <div className={`text-xs ${textSecondary}`}>{isRu ? 'Звук при завершении ответа' : 'Sound when response completes'}</div>
+          </div>
+        </div>
+        <button onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
+          className={`w-12 h-6 rounded-full p-0.5 transition-all flex-shrink-0 border ${settings.soundEnabled ? 'bg-green-500 border-green-400' : `${bgInput} ${border}`}`}>
+          <div className={`w-5 h-5 rounded-full ${isLight ? 'bg-gray-600' : 'bg-white'} shadow-lg transition-transform ${settings.soundEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+        </button>
+      </div>
+
       {/* Theme */}
       <div>
         <label className={`block text-xs ${textSecondary} mb-1`}>{t.theme}</label>
