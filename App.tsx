@@ -213,6 +213,9 @@ const App: React.FC = () => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [isProjectsCollapsed, setIsProjectsCollapsed] = useState(false);
   
+  // Random suggestions - regenerate only on new chat
+  const [randomSuggestions, setRandomSuggestions] = useState<Array<{t: string, d: string}>>([]);
+  
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
@@ -371,6 +374,34 @@ const App: React.FC = () => {
     setIsInitialized(true);
   }, []);
 
+  // Generate suggestions when switching to empty session
+  useEffect(() => {
+    const currentSession = sessions.find(s => s.id === currentSessionId);
+    if (currentSession && currentSession.messages.length === 0 && randomSuggestions.length === 0) {
+      const allSuggestions = settings.language === 'ru' ? [
+        { t: 'Объясни квантовые вычисления', d: 'Простыми словами' },
+        { t: 'Напиши Python скрипт', d: 'Для автоматизации задач' },
+        { t: 'Создай план тренировок', d: 'На неделю для начинающих' },
+        { t: 'Помоги с рецептом', d: 'Быстрый и вкусный ужин' },
+        { t: 'Объясни машинное обучение', d: 'Как работают нейросети' },
+        { t: 'Напиши эссе', d: 'На любую тему' },
+        { t: 'Помоги с математикой', d: 'Решить задачу' },
+        { t: 'Придумай идею для проекта', d: 'Что-то интересное' },
+      ] : [
+        { t: 'Explain Quantum Computing', d: 'In simple terms' },
+        { t: 'Write a Python Script', d: 'To automate daily tasks' },
+        { t: 'Create a workout plan', d: 'Weekly routine for beginners' },
+        { t: 'Help with a recipe', d: 'Quick and tasty dinner' },
+        { t: 'Explain machine learning', d: 'How neural networks work' },
+        { t: 'Write an essay', d: 'On any topic' },
+        { t: 'Help with math', d: 'Solve a problem' },
+        { t: 'Brainstorm project ideas', d: 'Something interesting' },
+      ];
+      const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5);
+      setRandomSuggestions(shuffled.slice(0, 3));
+    }
+  }, [currentSessionId, sessions, settings.language, randomSuggestions.length]);
+
   // Track if initial load is complete to prevent overwriting saved data
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -434,6 +465,31 @@ const App: React.FC = () => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Generate random suggestions
+  const generateSuggestions = useCallback(() => {
+    const allSuggestions = settings.language === 'ru' ? [
+      { t: 'Объясни квантовые вычисления', d: 'Простыми словами' },
+      { t: 'Напиши Python скрипт', d: 'Для автоматизации задач' },
+      { t: 'Создай план тренировок', d: 'На неделю для начинающих' },
+      { t: 'Помоги с рецептом', d: 'Быстрый и вкусный ужин' },
+      { t: 'Объясни машинное обучение', d: 'Как работают нейросети' },
+      { t: 'Напиши эссе', d: 'На любую тему' },
+      { t: 'Помоги с математикой', d: 'Решить задачу' },
+      { t: 'Придумай идею для проекта', d: 'Что-то интересное' },
+    ] : [
+      { t: 'Explain Quantum Computing', d: 'In simple terms' },
+      { t: 'Write a Python Script', d: 'To automate daily tasks' },
+      { t: 'Create a workout plan', d: 'Weekly routine for beginners' },
+      { t: 'Help with a recipe', d: 'Quick and tasty dinner' },
+      { t: 'Explain machine learning', d: 'How neural networks work' },
+      { t: 'Write an essay', d: 'On any topic' },
+      { t: 'Help with math', d: 'Solve a problem' },
+      { t: 'Brainstorm project ideas', d: 'Something interesting' },
+    ];
+    const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5);
+    setRandomSuggestions(shuffled.slice(0, 3));
+  }, [settings.language]);
+
   const createSession = () => {
     haptic.medium();
     
@@ -464,6 +520,7 @@ const App: React.FC = () => {
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setIsMobileMenuOpen(false);
+    generateSuggestions();
   };
   
   const clearAllHistory = () => {
@@ -1544,42 +1601,19 @@ const App: React.FC = () => {
                             {settings.language === 'ru' ? `Привет, ${userProfile.name}` : `Hello, ${userProfile.name}`}
                         </h2>
                         
-                        <div className="flex flex-col gap-2 w-full max-w-md">
-                            {(() => {
-                                const allSuggestions = settings.language === 'ru' ? [
-                                    { t: 'Объясни квантовые вычисления', d: 'Простыми словами' },
-                                    { t: 'Напиши Python скрипт', d: 'Для автоматизации задач' },
-                                    { t: 'Создай план тренировок', d: 'На неделю для начинающих' },
-                                    { t: 'Помоги с рецептом', d: 'Быстрый и вкусный ужин' },
-                                    { t: 'Объясни машинное обучение', d: 'Как работают нейросети' },
-                                    { t: 'Напиши эссе', d: 'На любую тему' },
-                                    { t: 'Помоги с математикой', d: 'Решить задачу' },
-                                    { t: 'Придумай идею для проекта', d: 'Что-то интересное' },
-                                ] : [
-                                    { t: 'Explain Quantum Computing', d: 'In simple terms' },
-                                    { t: 'Write a Python Script', d: 'To automate daily tasks' },
-                                    { t: 'Create a workout plan', d: 'Weekly routine for beginners' },
-                                    { t: 'Help with a recipe', d: 'Quick and tasty dinner' },
-                                    { t: 'Explain machine learning', d: 'How neural networks work' },
-                                    { t: 'Write an essay', d: 'On any topic' },
-                                    { t: 'Help with math', d: 'Solve a problem' },
-                                    { t: 'Brainstorm project ideas', d: 'Something interesting' },
-                                ];
-                                // Shuffle and pick 3
-                                const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5);
-                                return shuffled.slice(0, 3);
-                            })().map((item, i) => (
+                        <div className="flex flex-col gap-3 w-full max-w-md">
+                            {randomSuggestions.map((item, i) => (
                                 <button 
                                     key={i}
                                     onClick={() => handleSendMessage(item.t, [], false, ChatMode.STANDARD, settings.responseLength || 'detailed')}
-                                    className={`text-left group p-3 rounded-xl transition-all ${
+                                    className={`text-left group px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98] ${
                                         settings.theme === 'light'
-                                            ? 'bg-gray-100 hover:bg-gray-200 border border-gray-200'
-                                            : 'bg-[#1a1a1a] hover:bg-[#252525] border border-zinc-800'
+                                            ? 'bg-white hover:bg-gray-50 border border-gray-200'
+                                            : 'bg-[#1a1a1a] hover:bg-[#252525] border border-[#2a2a2a]'
                                     }`}
                                 >
-                                    <div className="text-sm font-medium text-text">{item.t}</div>
-                                    <div className={`text-[11px] mt-0.5 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'}`}>{item.d}</div>
+                                    <div className={`text-[15px] font-medium ${settings.theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{item.t}</div>
+                                    <div className={`text-[13px] mt-1 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'}`}>{item.d}</div>
                                 </button>
                             ))}
                         </div>
