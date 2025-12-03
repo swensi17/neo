@@ -281,19 +281,37 @@ const App: React.FC = () => {
     setSessions(prev => prev.map(s => s.id === currentSessionId ? updatedSession : s));
   };
 
-  // Share chat (copy link or text)
+  // Share chat (native share on mobile, copy on desktop)
   const shareChat = async () => {
     const session = getCurrentSession();
-    if (!session) return;
+    if (!session || session.messages.length === 0) {
+      alert(settings.language === 'ru' ? 'Нечего делиться — чат пуст' : 'Nothing to share — chat is empty');
+      return;
+    }
+    
     const text = `${session.title}\n\n` + session.messages.map(m => 
       `${m.role === Role.USER ? '👤' : '🤖'} ${m.text}`
     ).join('\n\n---\n\n');
     
+    // Try native share API first (works on mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: session.title,
+          text: text
+        });
+        return;
+      } catch (err) {
+        // User cancelled or share failed, fall through to clipboard
+        if ((err as Error).name === 'AbortError') return;
+      }
+    }
+    
+    // Fallback to clipboard
     try {
       await navigator.clipboard.writeText(text);
       alert(settings.language === 'ru' ? 'Чат скопирован в буфер обмена!' : 'Chat copied to clipboard!');
     } catch {
-      // Fallback
       const textarea = document.createElement('textarea');
       textarea.value = text;
       document.body.appendChild(textarea);
