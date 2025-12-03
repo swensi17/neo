@@ -144,34 +144,19 @@ iframe { border: none; }
   animation: shrink linear forwards;
 }
 
-@keyframes toast-in {
+@keyframes toast-down {
   from { 
     opacity: 0; 
-    transform: translateX(20px); 
+    transform: translateX(-50%) translateY(-10px); 
   }
   to { 
     opacity: 1; 
-    transform: translateX(0); 
+    transform: translateX(-50%) translateY(0); 
   }
 }
 
-.animate-toast-in {
-  animation: toast-in 0.2s ease-out forwards;
-}
-
-@keyframes toast-up {
-  from { 
-    opacity: 0; 
-    transform: translateY(10px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-}
-
-.animate-toast-up {
-  animation: toast-up 0.2s ease-out forwards;
+.animate-toast-down {
+  animation: toast-down 0.2s ease-out forwards;
 }
 
 @keyframes slide-up {

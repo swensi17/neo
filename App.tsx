@@ -383,30 +383,42 @@ const App: React.FC = () => {
       return;
     }
     
-    // Create minimal share data (without attachments to keep URL short)
-    const shareData = {
-      t: session.title,
-      m: session.messages.map(m => ({
-        r: m.role === Role.USER ? 'u' : 'm',
-        x: m.text
-      }))
-    };
+    // Create minimal share data - limit message length and count
+    const maxMessages = 20;
+    const maxTextLength = 2000;
+    const messages = session.messages.slice(-maxMessages).map(m => ({
+      r: m.role === Role.USER ? 'u' : 'm',
+      x: m.text.length > maxTextLength ? m.text.slice(0, maxTextLength) + '...' : m.text
+    }));
+    
+    const shareData = { t: session.title.slice(0, 100), m: messages };
     
     try {
-      // Encode to base64
       const jsonStr = JSON.stringify(shareData);
       const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
-      
-      // Create share URL
       const baseUrl = window.location.origin + window.location.pathname;
       const shareUrl = `${baseUrl}?share=${base64}`;
       
-      // Check if URL is too long (most browsers support ~2000 chars)
+      // If still too long, reduce further
       if (shareUrl.length > 8000) {
-        showToast(settings.language === 'ru' 
-          ? 'Чат слишком длинный для создания ссылки' 
-          : 'Chat is too long to create a link', 'error');
-        return;
+        // Try with fewer messages
+        const reducedMessages = messages.slice(-10).map(m => ({
+          ...m,
+          x: m.x.length > 500 ? m.x.slice(0, 500) + '...' : m.x
+        }));
+        const reducedData = { t: shareData.t, m: reducedMessages };
+        const reducedJson = JSON.stringify(reducedData);
+        const reducedBase64 = btoa(unescape(encodeURIComponent(reducedJson)));
+        const reducedUrl = `${baseUrl}?share=${reducedBase64}`;
+        
+        if (reducedUrl.length > 8000) {
+          showToast(settings.language === 'ru' ? 'Чат слишком длинный' : 'Chat too long', 'info');
+          // Copy as text instead
+          await navigator.clipboard.writeText(`${session.title}\n\n` + session.messages.slice(-5).map(m => 
+            `${m.role === Role.USER ? '👤' : '🤖'} ${m.text.slice(0, 300)}`
+          ).join('\n\n'));
+          return;
+        }
       }
       
       // Try native share API first (works on mobile)
