@@ -1609,11 +1609,11 @@ const App: React.FC = () => {
                                     className={`text-left group px-4 py-3.5 rounded-2xl transition-all active:scale-[0.98] ${
                                         settings.theme === 'light'
                                             ? 'bg-white hover:bg-gray-50 border border-gray-200'
-                                            : 'bg-[#1a1a1a] hover:bg-[#252525] border border-[#2a2a2a]'
+                                            : 'bg-[#141414] hover:bg-[#1a1a1a] border border-zinc-800'
                                     }`}
                                 >
                                     <div className={`text-[15px] font-medium ${settings.theme === 'light' ? 'text-gray-900' : 'text-white'}`}>{item.t}</div>
-                                    <div className={`text-[13px] mt-1 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'}`}>{item.d}</div>
+                                    <div className={`text-[13px] mt-1 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-400'}`}>{item.d}</div>
                                 </button>
                             ))}
                         </div>
