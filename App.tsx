@@ -936,7 +936,7 @@ const App: React.FC = () => {
 
       <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 overflow-hidden ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
         
-        <header className="flex items-center justify-between px-3 z-30 bg-background border-b border-white/5" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', minHeight: 'calc(48px + env(safe-area-inset-top, 0px))' }}>
+        <header className="flex items-center justify-between px-3 z-30 bg-background border-b border-white/5 relative shrink-0" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', minHeight: 'calc(48px + env(safe-area-inset-top, 0px))' }}>
             <div className="flex items-center gap-2">
                 <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-text-secondary hover:text-text transition-colors p-2 -ml-2">
                     <Menu size={22} />

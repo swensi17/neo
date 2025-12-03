@@ -34,7 +34,7 @@ export const Toast: React.FC<ToastProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed top-16 inset-x-0 z-[200] flex justify-center pointer-events-none px-4">
+    <div className="fixed inset-x-0 z-[200] flex justify-center pointer-events-none px-4" style={{ top: 'calc(64px + env(safe-area-inset-top, 0px))' }}>
       <div 
         className="pointer-events-auto px-4 py-2 rounded-full shadow-lg bg-zinc-800 text-white animate-toast-down"
       >
