@@ -18,10 +18,10 @@
     </linearGradient>
   </defs>
   
-  <!-- Фон -->
+  <!-- Фон с закругленными углами -->
   <rect width="512" height="512" rx="128" fill="url(#bgGradient)"/>
   
-  <!-- Внешнее кольцо -->
+  <!-- Внешнее кольцо с градиентом -->
   <circle cx="256" cy="256" r="180" fill="none" stroke="url(#iconGradient)" stroke-width="8" opacity="0.3"/>
   
   <!-- Внутренний круг -->
