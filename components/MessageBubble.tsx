@@ -180,7 +180,7 @@ const getDomainType = (hostname: string): { type: string; color: string } => {
 // Sources section - collapsible like ChatGPT/Claude
 const SOURCES_COLLAPSED_KEY = 'neo_sources_collapsed';
 
-const SourcesCarousel = ({ sources, lang }: { sources: Array<{ title: string; uri: string }>, lang: string }) => {
+const SourcesCarousel = ({ sources, lang, searchHighlight, isLight }: { sources: Array<{ title: string; uri: string }>, lang: string, searchHighlight?: string, isLight?: boolean }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
@@ -314,7 +314,7 @@ const SourcesCarousel = ({ sources, lang }: { sources: Array<{ title: string; ur
                                 
                                 {/* Title */}
                                 <div className="text-[12px] text-zinc-400 line-clamp-2 group-hover/source:text-zinc-200 transition-colors leading-snug">
-                                    {g.title || hostname}
+                                    <HighlightText text={g.title || hostname} highlight={searchHighlight} isLight={isLight || false} />
                                 </div>
                             </a>
                         );
@@ -931,7 +931,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {/* Sources Section - Horizontal Carousel with arrows */}
         {message.groundingUrls && message.groundingUrls.length > 0 && !message.isThinking && (
-             <SourcesCarousel sources={message.groundingUrls} lang={lang} />
+             <SourcesCarousel sources={message.groundingUrls} lang={lang} searchHighlight={searchHighlight} isLight={isLight} />
         )}
 
         {/* Follow-up Questions - Perplexity style */}
@@ -951,7 +951,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                       : 'bg-[#0f0f0f] border-zinc-800/50 text-zinc-400 hover:bg-[#141414] hover:border-zinc-700'
                   }`}
                 >
-                  {q}
+                  <HighlightText text={q} highlight={searchHighlight} isLight={isLight} />
                 </button>
               ))}
             </div>

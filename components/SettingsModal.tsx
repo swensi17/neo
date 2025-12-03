@@ -796,6 +796,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <ChevronRight size={18} className={textMuted} />
         </a>
+        
+        <div className={`border-t ${divider} ml-12`} />
+        
+        <a 
+          href="https://instagram.com/swensi17" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
+        >
+          <div className="flex items-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={textMuted}>
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+            <span className={`text-[15px] ${text}`}>Instagram</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
       </div>
 
       {/* Version info */}
@@ -1256,6 +1275,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="flex items-center gap-3">
             <Github size={20} className={textMuted} />
             <span className={`text-[15px] ${text}`}>GitHub</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+        
+        <a 
+          href="https://instagram.com/swensi17" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`flex items-center justify-between py-3 px-3 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]'}`}
+        >
+          <div className="flex items-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={textMuted}>
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+            <span className={`text-[15px] ${text}`}>Instagram</span>
           </div>
           <ChevronRight size={18} className={textMuted} />
         </a>

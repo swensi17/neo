@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Plus, StopCircle, X, AudioLines, ArrowUp, ArrowDown, Zap, BookOpen, FlaskConical, Camera, Image as ImageIcon, FileText, Globe, Sparkles, ChevronRight, Check, Maximize2, Minimize2 } from 'lucide-react';
 import { Attachment, ChatMode, TRANSLATIONS, InterfaceLanguage } from '../types';
 import { haptic } from '../utils/haptic';
+import { CameraModal } from './CameraModal';
 
 
 
@@ -318,6 +319,8 @@ export const InputArea: React.FC<InputAreaProps> = ({
   const [menuPage, setMenuPage] = useState<'add' | 'style' | 'length' | null>(null);
   // Expanded input mode for long text
   const [isExpanded, setIsExpanded] = useState(false);
+  // Camera modal state
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   
   // Load saved settings
   const loadSettings = () => {
@@ -572,7 +575,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2 px-4 pb-2">
-                <button onClick={() => { imageInputRef.current?.click(); setMenuPage(null); }}
+                <button onClick={() => { setMenuPage(null); setIsCameraOpen(true); }}
                   className={`flex flex-col items-center justify-center gap-1.5 py-3.5 ${isLight ? 'bg-white' : 'bg-[#111111]'} rounded-xl active:opacity-70`}>
                   <Camera size={22} className={isLight ? 'text-zinc-600' : 'text-zinc-500'} />
                   <span className={`text-[12px] ${text_color}`}>{isRu ? 'Камера' : 'Camera'}</span>
@@ -895,6 +898,17 @@ export const InputArea: React.FC<InputAreaProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Camera Modal */}
+      <CameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={(attachment) => {
+          setAttachments(prev => [...prev, attachment]);
+        }}
+        isLight={isLight}
+        language={isRu ? 'ru' : 'en'}
+      />
     </div>
   );
 };

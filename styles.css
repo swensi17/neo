@@ -288,3 +288,13 @@ iframe { border: none; }
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
 }
+
+/* Camera flash animation */
+@keyframes flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.animate-flash {
+  animation: flash 0.15s ease-out forwards;
+}
