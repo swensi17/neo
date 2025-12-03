@@ -220,7 +220,7 @@ export const streamChatResponse = async (
     'tg': 'Tajik (тоҷикӣ)',
     'ky': 'Kyrgyz (кыргызча)',
     'az': 'Azerbaijani (azərbaycan)',
-    'hy': 'Armenian (հայdelays)',
+    'hy': 'Armenian (հայերdelays)',
     'ka': 'Georgian (ქართული)',
     'be': 'Belarusian (беларуская)',
     'mn': 'Mongolian (монгол)',
@@ -251,7 +251,11 @@ export const streamChatResponse = async (
   
   if (modelLanguage && modelLanguage !== 'auto') {
     const langName = LANGUAGE_NAMES[modelLanguage] || modelLanguage.toUpperCase();
-    systemInstruction += `\n\nLANGUAGE REQUIREMENT: You MUST respond ONLY in ${langName}. This is mandatory - do not use any other language in your response.`;
+    systemInstruction += `\n\n⚠️ CRITICAL LANGUAGE REQUIREMENT ⚠️
+You MUST respond ONLY in ${langName}. 
+IGNORE the language used in previous messages in this conversation.
+Even if the chat history contains messages in other languages, YOUR response must be in ${langName}.
+This setting was just changed by the user - switch to ${langName} immediately.`;
   }
 
   // Add 18+ mode - use softer language to avoid triggering safety filters

@@ -419,7 +419,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
 
           {isUser ? (
-            <div className={`whitespace-pre-wrap font-sans break-words ${isEditing ? 'opacity-50' : ''}`}>{displayText}</div>
+            <div className={`whitespace-pre-line font-sans break-words ${isEditing ? 'opacity-50' : ''}`}>{displayText}</div>
           ) : (
             <div className="font-sans markdown-body">
               <ReactMarkdown

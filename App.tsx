@@ -1381,7 +1381,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
                 <div 
                     className="flex-1 flex items-center gap-3 cursor-pointer hover:bg-surface-hover p-2 rounded-xl transition-colors"
-                    onClick={() => { haptic.light(); setIsSettingsOpen(true); }}
+                    onClick={() => { haptic.light(); setSettingsInitialPage('profile'); setIsSettingsOpen(true); }}
                 >
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-surface flex items-center justify-center text-xs font-bold text-text">
                         {userProfile.avatar ? (
