@@ -948,7 +948,7 @@ const App: React.FC = () => {
 
       <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
         
-        <header className="h-14 flex items-center justify-between px-4 z-30 fixed top-0 left-0 right-0 md:left-auto md:relative bg-background/95 backdrop-blur-md border-b border-white/5" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <header className="h-14 flex items-center justify-between px-4 z-30 sticky top-0 bg-background border-b border-white/5 flex-shrink-0">
             <div className="flex items-center gap-3">
                 <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-text-secondary hover:text-text transition-colors p-2">
                     <Menu size={20} />
@@ -993,7 +993,7 @@ const App: React.FC = () => {
 
         <div 
             ref={chatContainerRef} 
-            className="flex-1 overflow-y-auto scrollbar-hide pt-16 pb-4 relative md:pt-20"
+            className="flex-1 overflow-y-auto scrollbar-hide pb-4 relative"
             onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}

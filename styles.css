@@ -28,8 +28,9 @@ html, body {
 }
 
 /* iOS Safe Areas for PWA */
-html {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+#root {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Prevent iOS zoom on input focus */

@@ -310,7 +310,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
           onFocus={onInputFocus}
           placeholder={placeholderText}
           rows={1}
-          className={`flex-1 bg-transparent ${textMain} placeholder-gray-400 py-2 px-1 focus:outline-none max-h-28 scrollbar-hide text-sm leading-relaxed resize-none min-h-[32px]`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="sentences"
+          spellCheck={false}
+          enterKeyHint="send"
+          className={`flex-1 bg-transparent ${textMain} placeholder-gray-400 py-2 px-1 focus:outline-none max-h-28 scrollbar-hide text-[16px] leading-relaxed resize-none min-h-[32px]`}
+          style={{ fontSize: '16px' }}
         />
 
         <div className="flex items-center gap-1 flex-shrink-0">
