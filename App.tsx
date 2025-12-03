@@ -10,6 +10,10 @@ import { DownloadModal } from './components/DownloadModal';
 import { CodePreviewPanel, extractCodeForPreview } from './components/CodePreviewPanel';
 import { Toast, ToastType } from './components/Toast';
 import { NewProjectModal } from './components/NewProjectModal';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { SkeletonLoader } from './components/SkeletonLoader';
+import { SwipeableItem } from './components/SwipeableItem';
 import { haptic } from './utils/haptic';
 import { Briefcase, DollarSign, Smartphone, GraduationCap, Pencil, Leaf, Code, Image, Music, ShoppingBag, Scissors, Palette, Dumbbell, Snowflake, Printer, Scale, Lightbulb, Plane, Globe, Wrench, Users, FlaskConical, Heart, ShoppingCart } from 'lucide-react';
 
@@ -22,7 +26,8 @@ const getProjectIcon = (iconName: string) => PROJECT_ICON_MAP[iconName] || Brief
 import { 
   Menu, Plus, MessageSquare, Settings as SettingsIcon, 
   Trash2, Download, PanelLeft, Sparkles, ChevronLeft, ChevronRight, ArrowDown,
-  Search, Upload, X, PenSquare, Share2, FolderPlus, Tag, MoreVertical, Edit3
+  Search, Upload, X, PenSquare, Share2, FolderPlus, Tag, MoreVertical, Edit3,
+  Pin, PinOff, FileDown, FileUp, Hash
 } from 'lucide-react';
 
 const DEFAULT_PERSONA = Persona.ASSISTANT;
@@ -72,11 +77,37 @@ interface ChatItemProps {
   isLight: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onPin: () => void;
+  onRename: () => void;
+  onExport: () => void;
+  onTagsClick: () => void;
+  isRenaming: boolean;
+  renamingTitle: string;
+  onRenamingChange: (title: string) => void;
+  onRenameSubmit: () => void;
+  onRenameCancel: () => void;
   lang: string;
+  currentFilterTag?: string | null;
 }
 
-const ChatItem: React.FC<ChatItemProps> = ({ session, isSelected, isLight, onSelect, onDelete, lang }) => {
+const ChatItem: React.FC<ChatItemProps> = ({ 
+  session, isSelected, isLight, onSelect, onDelete, onPin, onRename, onExport, onTagsClick,
+  isRenaming, renamingTitle, onRenamingChange, onRenameSubmit, onRenameCancel, lang, currentFilterTag
+}) => {
+  // Check if pinned based on current filter
+  const isPinnedInContext = currentFilterTag 
+    ? (session.pinnedInTags || []).includes(currentFilterTag)
+    : session.isPinned;
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    if (isRenaming && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isRenaming]);
   
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -86,86 +117,149 @@ const ChatItem: React.FC<ChatItemProps> = ({ session, isSelected, isLight, onSel
       setConfirmDelete(false);
     } else {
       setConfirmDelete(true);
-      // Auto-reset after 3 seconds
       setTimeout(() => setConfirmDelete(false), 3000);
     }
   };
+
+  if (isRenaming) {
+    return (
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]'}`}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={renamingTitle}
+          onChange={(e) => onRenamingChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onRenameSubmit();
+            if (e.key === 'Escape') onRenameCancel();
+          }}
+          onBlur={onRenameCancel}
+          className={`flex-1 text-[13px] bg-transparent outline-none ${isLight ? 'text-gray-900' : 'text-white'}`}
+        />
+      </div>
+    );
+  }
 
   return (
     <div 
       onClick={onSelect}
       className={`
-        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors
+        group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors relative
         ${isSelected 
           ? (isLight ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white') 
           : (isLight ? 'text-gray-600 active:text-gray-900' : 'text-zinc-400 active:text-white')
         }
       `}
     >
-      <div className="flex-1 truncate text-[13px]">
-        {session.title || 'Untitled'}
+      {isPinnedInContext && (
+        <Pin size={10} className={`shrink-0 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`} />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="truncate text-[13px]">{session.title || 'Untitled'}</div>
+        {session.tags && session.tags.length > 0 && (
+          <div className="flex gap-1 mt-0.5 overflow-hidden">
+            {session.tags.slice(0, 2).map(tag => (
+              <span key={tag} className={`text-[9px] px-1.5 py-0.5 rounded-md shrink-0 ${isLight ? 'bg-gray-200/80 text-gray-500' : 'bg-[#1a1a1a] text-zinc-500'}`}>
+                #{tag}
+              </span>
+            ))}
+            {session.tags.length > 2 && (
+              <span className={`text-[9px] shrink-0 ${isLight ? 'text-gray-400' : 'text-zinc-600'}`}>+{session.tags.length - 2}</span>
+            )}
+          </div>
+        )}
       </div>
+      
+      {/* Menu button - desktop only (hover to show) */}
       <button 
-        onClick={handleDeleteClick}
-        className={`p-1 rounded transition-all md:opacity-0 md:group-hover:opacity-100 ${
-          confirmDelete 
-            ? 'text-red-500 opacity-100' 
-            : (isLight ? 'text-gray-400 hover:text-red-500' : 'text-zinc-500 hover:text-red-400')
+        onClick={(e) => { e.stopPropagation(); haptic.light(); setShowMenu(!showMenu); }}
+        className={`hidden md:block p-1.5 rounded transition-all opacity-0 group-hover:opacity-100 ${
+          isLight ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-500 hover:text-zinc-300'
         }`}
-        title={confirmDelete ? (lang === 'ru' ? 'Нажмите ещё раз' : 'Click again') : (lang === 'ru' ? 'Удалить' : 'Delete')}
       >
-        <Trash2 size={12} />
+        <MoreVertical size={16} />
       </button>
+      
+      {/* Dropdown menu */}
+      {showMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
+          <div className={`absolute right-0 top-full mt-1 w-44 rounded-xl shadow-2xl z-50 overflow-hidden ${
+            isLight ? 'bg-white border border-gray-200' : 'bg-[#0a0a0a] border border-zinc-800'
+          }`}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onPin(); setShowMenu(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
+                isLight ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+              }`}
+            >
+              {isPinnedInContext ? <PinOff size={14} /> : <Pin size={14} />}
+              {isPinnedInContext ? (lang === 'ru' ? 'Открепить' : 'Unpin') : (lang === 'ru' ? 'Закрепить' : 'Pin')}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onRename(); setShowMenu(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
+                isLight ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+              }`}
+            >
+              <Edit3 size={14} />
+              {lang === 'ru' ? 'Переименовать' : 'Rename'}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onTagsClick(); setShowMenu(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
+                isLight ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+              }`}
+            >
+              <Hash size={14} />
+              {lang === 'ru' ? 'Теги' : 'Tags'}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onExport(); setShowMenu(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
+                isLight ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+              }`}
+            >
+              <FileDown size={14} />
+              {lang === 'ru' ? 'Экспорт' : 'Export'}
+            </button>
+            <div className={`border-t ${isLight ? 'border-gray-100' : 'border-zinc-800/50'}`} />
+            <button
+              onClick={handleDeleteClick}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors ${
+                confirmDelete ? 'text-red-500 bg-red-500/10' : 'text-red-500'
+              } ${isLight ? 'active:bg-red-50' : 'active:bg-red-500/10'}`}
+            >
+              <Trash2 size={14} />
+              {confirmDelete ? (lang === 'ru' ? 'Подтвердить' : 'Confirm') : (lang === 'ru' ? 'Удалить' : 'Delete')}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
-// Project Chat Item with double-confirm delete
+// Project Chat Item - simple, no delete button (use chat menu instead)
 interface ProjectChatItemProps {
   chat: ChatSession;
   isSelected: boolean;
   isLight: boolean;
   onSelect: () => void;
-  onDelete: () => void;
   lang: string;
 }
 
-const ProjectChatItem: React.FC<ProjectChatItemProps> = ({ chat, isSelected, isLight, onSelect, onDelete, lang }) => {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    haptic.light();
-    if (confirmDelete) {
-      onDelete();
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
-  };
-
+const ProjectChatItem: React.FC<ProjectChatItemProps> = ({ chat, isSelected, isLight, onSelect, lang }) => {
   return (
     <div 
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
-      className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
         isSelected
           ? (isLight ? 'bg-gray-200 text-gray-900' : 'bg-[#252525] text-white')
           : (isLight ? 'text-gray-600 active:text-gray-900' : 'text-zinc-400 active:text-white')
       }`}
     >
       <span className="flex-1 text-[13px] truncate">{chat.title || (lang === 'ru' ? 'Новый чат' : 'New chat')}</span>
-      <button 
-        onClick={handleDeleteClick}
-        className={`p-1 rounded transition-all md:opacity-0 md:group-hover:opacity-100 ${
-          confirmDelete 
-            ? 'text-red-500 opacity-100' 
-            : (isLight ? 'text-gray-400 hover:text-red-500' : 'text-zinc-500 hover:text-red-400')
-        }`}
-        title={confirmDelete ? (lang === 'ru' ? 'Нажмите ещё раз' : 'Click again') : (lang === 'ru' ? 'Удалить' : 'Delete')}
-      >
-        <Trash2 size={12} />
-      </button>
     </div>
   );
 };
@@ -195,6 +289,20 @@ const App: React.FC = () => {
   const [editingText, setEditingText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [showApiKeyAlert, setShowApiKeyAlert] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  
+  // Chat management states
+  const [inChatSearchQuery, setInChatSearchQuery] = useState('');
+  const [showInChatSearch, setShowInChatSearch] = useState(false);
+  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
+  const [renamingTitle, setRenamingTitle] = useState('');
+  const [showTagsModal, setShowTagsModal] = useState(false);
+  const [editingTagsChatId, setEditingTagsChatId] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>(() => {
+    const saved = localStorage.getItem('neo_tags');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [filterTag, setFilterTag] = useState<string | null>(null);
   
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: ToastType; isOpen: boolean }>({
@@ -453,6 +561,11 @@ const App: React.FC = () => {
     localStorage.setItem('neo_projects', JSON.stringify(projects));
   }, [projects]);
 
+  // Save tags
+  useEffect(() => {
+    localStorage.setItem('neo_tags', JSON.stringify(availableTags));
+  }, [availableTags]);
+
   // Create new project
   const handleCreateProject = (projectData: Omit<Project, 'id' | 'createdAt' | 'chatIds'>) => {
     const newProject: Project = {
@@ -476,23 +589,47 @@ const App: React.FC = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Track previous message count to scroll only on new messages
+  // Track previous message count and text length for auto-scroll
   const prevMessageCountRef = useRef(0);
+  const lastTextLengthRef = useRef(0);
+  const wasStreamingRef = useRef(false);
   
   useEffect(() => {
     const currentSession = sessions.find(s => s.id === currentSessionId);
     const messageCount = currentSession?.messages.length || 0;
+    const lastMessage = currentSession?.messages[currentSession.messages.length - 1];
+    const currentTextLength = lastMessage?.text?.length || 0;
     
-    // Scroll only when streaming or when new message added
-    if (isStreaming || messageCount > prevMessageCountRef.current) {
+    // Scroll when new message added (user sends)
+    const isNewMessage = messageCount > prevMessageCountRef.current;
+    
+    // Scroll during streaming when text grows
+    const isTextGrowing = isStreaming && currentTextLength > lastTextLengthRef.current;
+    
+    if (isNewMessage || isTextGrowing) {
         scrollToBottom();
     }
+    
+    // Extra scroll when streaming just finished (to show follow-up questions)
+    if (wasStreamingRef.current && !isStreaming) {
+        setTimeout(() => scrollToBottom(), 100);
+        setTimeout(() => scrollToBottom(), 500);
+        setTimeout(() => scrollToBottom(), 1000);
+    }
+    
     prevMessageCountRef.current = messageCount;
+    lastTextLengthRef.current = currentTextLength;
+    wasStreamingRef.current = isStreaming;
   }, [currentSessionId, sessions, isStreaming]);
 
-  const scrollToBottom = () => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = useCallback(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight + 500,
+          behavior: 'smooth'
+        });
+      }
+  }, []);
 
   // Generate random suggestions
   const generateSuggestions = useCallback(() => {
@@ -566,12 +703,30 @@ const App: React.FC = () => {
   const filteredSessions = sessions.filter(s => {
     // Hide project chats from main list
     if (s.projectId) return false;
+    // Filter by tag
+    if (filterTag && !(s.tags || []).includes(filterTag)) return false;
     // Filter by search
     if (searchQuery.trim()) {
       return s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.messages.some(m => m.text.toLowerCase().includes(searchQuery.toLowerCase()));
     }
     return true;
+  });
+
+  // Sort: pinned first based on context (tag or global), then by date
+  const sortedFilteredSessions = [...filteredSessions].sort((a, b) => {
+    if (filterTag) {
+      // Check if pinned in this specific tag
+      const aPinned = (a.pinnedInTags || []).includes(filterTag);
+      const bPinned = (b.pinnedInTags || []).includes(filterTag);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+    } else {
+      // In "All" view, use global isPinned
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+    }
+    return b.updatedAt - a.updatedAt;
   });
 
   // Export all data
@@ -610,6 +765,146 @@ const App: React.FC = () => {
     reader.readAsText(file);
     e.target.value = '';
   };
+
+  // Export single chat
+  const exportSingleChat = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    const data = {
+      ...session,
+      exportedAt: new Date().toISOString(),
+      version: '1.0'
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat_${session.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(settings.language === 'ru' ? 'Чат экспортирован!' : 'Chat exported!', 'success');
+  };
+
+  // Import single chat
+  const importSingleChat = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.messages && Array.isArray(data.messages)) {
+          const newSession: ChatSession = {
+            id: Date.now().toString(),
+            title: data.title || 'Imported Chat',
+            messages: data.messages,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            persona: data.persona || DEFAULT_PERSONA,
+            isPinned: false,
+            tags: data.tags || []
+          };
+          setSessions(prev => [newSession, ...prev]);
+          setCurrentSessionId(newSession.id);
+          showToast(settings.language === 'ru' ? 'Чат импортирован!' : 'Chat imported!', 'success');
+        } else {
+          throw new Error('Invalid chat format');
+        }
+      } catch (err) {
+        showToast(settings.language === 'ru' ? 'Ошибка импорта чата' : 'Error importing chat', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Toggle pin chat - pins in current tag filter, or globally if no filter
+  const togglePinChat = (sessionId: string) => {
+    haptic.light();
+    setSessions(prev => prev.map(s => {
+      if (s.id !== sessionId) return s;
+      
+      if (filterTag) {
+        // Pin/unpin in specific tag
+        const pinnedInTags = s.pinnedInTags || [];
+        const isPinnedInTag = pinnedInTags.includes(filterTag);
+        return {
+          ...s,
+          pinnedInTags: isPinnedInTag 
+            ? pinnedInTags.filter(t => t !== filterTag)
+            : [...pinnedInTags, filterTag]
+        };
+      } else {
+        // Pin/unpin globally (in "All" view)
+        return { ...s, isPinned: !s.isPinned };
+      }
+    }));
+  };
+
+  // Rename chat
+  const renameChat = (sessionId: string, newTitle: string) => {
+    if (!newTitle.trim()) return;
+    setSessions(prev => prev.map(s => 
+      s.id === sessionId ? { ...s, title: newTitle.trim() } : s
+    ));
+    setRenamingChatId(null);
+    setRenamingTitle('');
+  };
+
+  // Add/remove tag from chat - can have multiple tags
+  const toggleChatTag = (sessionId: string, tag: string) => {
+    const normalizedTag = tag.toLowerCase().trim();
+    setSessions(prev => prev.map(s => {
+      if (s.id === sessionId) {
+        const currentTags = s.tags || [];
+        const hasTag = currentTags.includes(normalizedTag);
+        return {
+          ...s,
+          tags: hasTag ? currentTags.filter(t => t !== normalizedTag) : [...currentTags, normalizedTag]
+        };
+      }
+      return s;
+    }));
+  };
+
+  // Add new tag - limit 5 tags total
+  const MAX_TAGS = 5;
+  const addNewTag = (tag: string) => {
+    const trimmed = tag.trim().toLowerCase();
+    if (trimmed && !availableTags.includes(trimmed) && availableTags.length < MAX_TAGS) {
+      setAvailableTags(prev => [...prev, trimmed]);
+    }
+  };
+
+  // Delete tag
+  const deleteTag = (tag: string) => {
+    setAvailableTags(prev => prev.filter(t => t !== tag));
+    setSessions(prev => prev.map(s => ({
+      ...s,
+      tags: (s.tags || []).filter(t => t !== tag)
+    })));
+  };
+
+  // In-chat search - find messages matching query
+  const inChatSearchResults = React.useMemo(() => {
+    const session = sessions.find(s => s.id === currentSessionId);
+    if (!showInChatSearch || !inChatSearchQuery.trim() || !session) return [];
+    const query = inChatSearchQuery.toLowerCase();
+    return session.messages
+      .map((m, idx) => ({ message: m, index: idx }))
+      .filter(({ message }) => message.text.toLowerCase().includes(query));
+  }, [showInChatSearch, inChatSearchQuery, sessions, currentSessionId]);
+
+  // Auto-scroll to first search result
+  useEffect(() => {
+    if (inChatSearchResults.length > 0) {
+      const firstResult = inChatSearchResults[0];
+      const element = document.getElementById(`msg-${firstResult.message.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [inChatSearchResults]);
 
   // Edit message
   const handleEditMessage = async (messageId: string, newText: string) => {
@@ -705,13 +1000,17 @@ const App: React.FC = () => {
         }
       }
       
-      // Try native share API first (works on mobile)
+      // Copy to clipboard first
+      await navigator.clipboard.writeText(shareUrl);
+      
+      // Try native share API (works on mobile) - share only text, link is in clipboard
       if (navigator.share) {
         try {
           await navigator.share({
             title: session.title,
-            text: settings.language === 'ru' ? 'Посмотри мой чат с NEO' : 'Check out my NEO chat',
-            url: shareUrl
+            text: (settings.language === 'ru' 
+              ? 'Посмотри мой чат с NEO! Ссылка скопирована в буфер обмена.' 
+              : 'Check out my NEO chat! Link copied to clipboard.')
           });
           return;
         } catch (err) {
@@ -719,11 +1018,9 @@ const App: React.FC = () => {
         }
       }
       
-      // Fallback to clipboard
-      await navigator.clipboard.writeText(shareUrl);
       showToast(settings.language === 'ru' 
-        ? 'Ссылка скопирована! Отправьте её другу' 
-        : 'Link copied! Send it to a friend', 'success');
+        ? 'Ссылка скопирована!' 
+        : 'Link copied!', 'success');
     } catch (err) {
       // Fallback: copy as text
       const text = `${session.title}\n\n` + session.messages.map(m => 
@@ -839,19 +1136,24 @@ const App: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+/ or Cmd+/ - toggle search
+      // Ctrl+/ or Cmd+/ - toggle sidebar search
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
         setShowSearch(prev => !prev);
       }
+      // Ctrl+F or Cmd+F - toggle in-chat search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowInChatSearch(prev => !prev);
+        setInChatSearchQuery('');
+      }
       // Escape - close modals/search
       if (e.key === 'Escape') {
-        if (showSearch) setShowSearch(false);
-        if (editingMessageId) {
-          setEditingMessageId(null);
-          setEditingText('');
-        }
-        if (previewPanel.isOpen) setPreviewPanel(prev => ({ ...prev, isOpen: false }));
+        if (showInChatSearch) { setShowInChatSearch(false); setInChatSearchQuery(''); }
+        else if (showSearch) setShowSearch(false);
+        else if (showTagsModal) { setShowTagsModal(false); setEditingTagsChatId(null); }
+        else if (editingMessageId) { setEditingMessageId(null); setEditingText(''); }
+        else if (previewPanel.isOpen) setPreviewPanel(prev => ({ ...prev, isOpen: false }));
       }
       // Ctrl+N - new chat
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
@@ -862,6 +1164,16 @@ const App: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault();
         exportAllData();
+      }
+      // Ctrl+K - keyboard shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowKeyboardShortcuts(prev => !prev);
+      }
+      // Ctrl+, - settings
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        setIsSettingsOpen(true);
       }
     };
     
@@ -1003,13 +1315,17 @@ const App: React.FC = () => {
         return updated;
       });
       
+      // Final scroll to bottom after streaming completes
+      setTimeout(() => scrollToBottom(), 100);
+      setTimeout(() => scrollToBottom(), 300);
+      
       // Play notification sound when response is complete
       if (settings.soundEnabled) {
         playNotificationSound();
       }
       
-      // Generate follow-up questions (async, don't block)
-      if (finalResponseText && userQuery && mode === ChatMode.RESEARCH) {
+      // Generate follow-up questions for all modes (async, don't block)
+      if (finalResponseText && userQuery) {
         generateFollowUpQuestions(userQuery, finalResponseText, settings.language).then(questions => {
           if (questions.length > 0) {
             setSessions(prev => prev.map(s => {
@@ -1035,6 +1351,9 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (text: string, attachments: any[], webSearch: boolean, mode: ChatMode, responseLength: 'brief' | 'balanced' | 'detailed') => {
     if (!currentSessionId) return;
+    
+    // Block if already streaming
+    if (isStreaming) return;
     
     // Check API key
     if (!hasValidApiKey()) {
@@ -1066,6 +1385,9 @@ const App: React.FC = () => {
     const shouldGenerateTitle = currentSession.messages.length === 0 && !settings.incognito;
     const sessionIdForTitle = currentSessionId;
     setSessions(prev => prev.map(s => s.id === currentSessionId ? updatedSession : s));
+    
+    // Scroll to bottom immediately when user sends message
+    setTimeout(() => scrollToBottom(), 50);
     await processResponse(currentSessionId, updatedSession, messages, webSearch, mode, responseLength);
     if (shouldGenerateTitle && sessionIdForTitle) {
          generateChatTitle(text, settings.language === 'ru' ? 'ru' : 'en').then(newTitle => {
@@ -1201,6 +1523,22 @@ const App: React.FC = () => {
                     </button>
                 )}
             </div>
+            <label 
+                className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${
+                    settings.theme === 'light' 
+                        ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 active:bg-gray-200 active:text-gray-700' 
+                        : 'bg-[#0a0a0a] text-zinc-500 hover:bg-[#111111] hover:text-white active:text-white'
+                }`}
+                title={settings.language === 'ru' ? 'Импорт чата' : 'Import chat'}
+            >
+                <FileUp size={18} strokeWidth={1.5} />
+                <input
+                    type="file"
+                    accept=".json"
+                    onChange={importSingleChat}
+                    className="hidden"
+                />
+            </label>
             <button 
                 onClick={createSession}
                 className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
@@ -1347,20 +1685,6 @@ const App: React.FC = () => {
                             >
                                 <Plus size={12} />
                             </button>
-                            <ProjectDeleteButton 
-                                projectId={project.id}
-                                isLight={settings.theme === 'light'}
-                                onDelete={() => {
-                                    setProjects(prev => prev.filter(p => p.id !== project.id));
-                                    setSessions(prev => prev.filter(s => s.projectId !== project.id));
-                                    if (selectedProjectId === project.id) {
-                                        setSelectedProjectId(null);
-                                        const firstChat = sessions.find(s => !s.projectId);
-                                        if (firstChat) setCurrentSessionId(firstChat.id);
-                                    }
-                                }}
-                                lang={settings.language}
-                            />
                         </div>
                         
                         {/* Project Chats - nested under project */}
@@ -1383,29 +1707,6 @@ const App: React.FC = () => {
                                                 setCurrentSessionId(chat.id);
                                                 setIsMobileMenuOpen(false);
                                             }}
-                                            onDelete={() => {
-                                                const newSessions = sessions.filter(s => s.id !== chat.id);
-                                                setSessions(newSessions);
-                                                
-                                                // Always exit project and go to main
-                                                setSelectedProjectId(null);
-                                                const firstNonProjectChat = newSessions.find(s => !s.projectId);
-                                                if (firstNonProjectChat) {
-                                                    setCurrentSessionId(firstNonProjectChat.id);
-                                                } else {
-                                                    // Create new chat
-                                                    const newSession: ChatSession = {
-                                                        id: Date.now().toString(),
-                                                        title: t.newChat,
-                                                        messages: [],
-                                                        createdAt: Date.now(),
-                                                        updatedAt: Date.now(),
-                                                        persona: DEFAULT_PERSONA
-                                                    };
-                                                    setSessions(prev => [newSession, ...prev]);
-                                                    setCurrentSessionId(newSession.id);
-                                                }
-                                            }}
                                             lang={settings.language}
                                         />
                                     ))
@@ -1422,46 +1723,179 @@ const App: React.FC = () => {
             })}
         </div>
 
+        {/* Tags filter with horizontal scroll */}
+        {availableTags.length > 0 && (
+          <div className="px-2 pb-2 relative group/tags">
+            <div className="flex items-center gap-1">
+              {/* Left arrow - desktop only */}
+              <button
+                onClick={() => {
+                  const container = document.getElementById('tags-scroll-container');
+                  if (container) container.scrollBy({ left: -100, behavior: 'smooth' });
+                }}
+                className={`hidden md:flex shrink-0 w-6 h-6 items-center justify-center rounded-full transition-all opacity-0 group-hover/tags:opacity-100 ${
+                  settings.theme === 'light' ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-[#1a1a1a] text-zinc-400 hover:bg-[#252525]'
+                }`}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              
+              {/* Scrollable tags container */}
+              <div 
+                id="tags-scroll-container"
+                className="flex-1 flex gap-1 overflow-x-auto scrollbar-hide scroll-smooth"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <button
+                  onClick={() => setFilterTag(null)}
+                  className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full transition-colors ${
+                    filterTag === null
+                      ? (settings.theme === 'light' ? 'bg-gray-900 text-white' : 'bg-white text-black')
+                      : (settings.theme === 'light' ? 'bg-gray-100 text-gray-600' : 'bg-[#1a1a1a] text-zinc-400')
+                  }`}
+                >
+                  {settings.language === 'ru' ? 'Все' : 'All'}
+                </button>
+                {availableTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                    className={`shrink-0 text-[11px] px-2.5 py-1 rounded-full transition-colors whitespace-nowrap ${
+                      filterTag === tag
+                        ? (settings.theme === 'light' ? 'bg-gray-900 text-white' : 'bg-white text-black')
+                        : (settings.theme === 'light' ? 'bg-gray-100 text-gray-600' : 'bg-[#1a1a1a] text-zinc-400')
+                    }`}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Right arrow - desktop only */}
+              <button
+                onClick={() => {
+                  const container = document.getElementById('tags-scroll-container');
+                  if (container) container.scrollBy({ left: 100, behavior: 'smooth' });
+                }}
+                className={`hidden md:flex shrink-0 w-6 h-6 items-center justify-center rounded-full transition-all opacity-0 group-hover/tags:opacity-100 ${
+                  settings.theme === 'light' ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : 'bg-[#1a1a1a] text-zinc-400 hover:bg-[#252525]'
+                }`}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Chat list */}
         <div className="flex-1 overflow-y-auto px-2 pt-1 space-y-0.5 scrollbar-hide">
-            {filteredSessions.map(session => (
-                <ChatItem 
-                    key={session.id}
-                    session={session}
-                    isSelected={currentSessionId === session.id && !selectedProjectId}
-                    isLight={settings.theme === 'light'}
-                    onSelect={() => {
+            {!isInitialized ? (
+                <SkeletonLoader isLight={settings.theme === 'light'} type="sidebar" />
+            ) : sortedFilteredSessions.map(session => {
+                const handleDelete = () => {
+                    const newSessions = sessions.filter(s => s.id !== session.id);
+                    setSessions(newSessions);
+                    
+                    const firstNonProjectChat = newSessions.find(s => !s.projectId);
+                    if (firstNonProjectChat) {
+                        setCurrentSessionId(firstNonProjectChat.id);
+                    } else {
+                        const newSession: ChatSession = {
+                            id: Date.now().toString(),
+                            title: t.newChat,
+                            messages: [],
+                            createdAt: Date.now(),
+                            updatedAt: Date.now(),
+                            persona: DEFAULT_PERSONA
+                        };
+                        setSessions(prev => [newSession, ...prev]);
+                        setCurrentSessionId(newSession.id);
+                    }
+                    setSelectedProjectId(null);
+                };
+
+                const chatItemProps = {
+                    session,
+                    isSelected: currentSessionId === session.id && !selectedProjectId,
+                    isLight: settings.theme === 'light',
+                    onSelect: () => {
                         haptic.light();
                         setSelectedProjectId(null);
                         setCurrentSessionId(session.id);
                         setIsMobileMenuOpen(false);
-                    }}
-                    onDelete={() => {
-                        const newSessions = sessions.filter(s => s.id !== session.id);
-                        setSessions(newSessions);
-                        
-                        // Find first non-project chat or create new
-                        const firstNonProjectChat = newSessions.find(s => !s.projectId);
-                        if (firstNonProjectChat) {
-                            setCurrentSessionId(firstNonProjectChat.id);
-                        } else {
-                            // Create new chat
-                            const newSession: ChatSession = {
-                                id: Date.now().toString(),
-                                title: t.newChat,
-                                messages: [],
-                                createdAt: Date.now(),
-                                updatedAt: Date.now(),
-                                persona: DEFAULT_PERSONA
-                            };
-                            setSessions(prev => [newSession, ...prev]);
-                            setCurrentSessionId(newSession.id);
-                        }
-                        setSelectedProjectId(null);
-                    }}
-                    lang={settings.language}
-                />
-            ))}
+                    },
+                    onDelete: handleDelete,
+                    onPin: () => togglePinChat(session.id),
+                    onRename: () => { setRenamingChatId(session.id); setRenamingTitle(session.title); },
+                    onExport: () => exportSingleChat(session.id),
+                    onTagsClick: () => { setEditingTagsChatId(session.id); setShowTagsModal(true); },
+                    isRenaming: renamingChatId === session.id,
+                    renamingTitle,
+                    onRenamingChange: setRenamingTitle,
+                    onRenameSubmit: () => renameChat(session.id, renamingTitle),
+                    onRenameCancel: () => { setRenamingChatId(null); setRenamingTitle(''); },
+                    lang: settings.language,
+                    currentFilterTag: filterTag
+                };
+
+                return (
+                    <div key={session.id} className="md:hidden">
+                        <ChatItem {...chatItemProps} />
+                    </div>
+                );
+            })}
+            {/* Desktop version */}
+            {isInitialized && sortedFilteredSessions.map(session => {
+                const handleDelete = () => {
+                    const newSessions = sessions.filter(s => s.id !== session.id);
+                    setSessions(newSessions);
+                    
+                    const firstNonProjectChat = newSessions.find(s => !s.projectId);
+                    if (firstNonProjectChat) {
+                        setCurrentSessionId(firstNonProjectChat.id);
+                    } else {
+                        const newSession: ChatSession = {
+                            id: Date.now().toString(),
+                            title: t.newChat,
+                            messages: [],
+                            createdAt: Date.now(),
+                            updatedAt: Date.now(),
+                            persona: DEFAULT_PERSONA
+                        };
+                        setSessions(prev => [newSession, ...prev]);
+                        setCurrentSessionId(newSession.id);
+                    }
+                    setSelectedProjectId(null);
+                };
+
+                return (
+                    <div key={session.id} className="hidden md:block">
+                        <ChatItem 
+                            session={session}
+                            isSelected={currentSessionId === session.id && !selectedProjectId}
+                            isLight={settings.theme === 'light'}
+                            onSelect={() => {
+                                haptic.light();
+                                setSelectedProjectId(null);
+                                setCurrentSessionId(session.id);
+                                setIsMobileMenuOpen(false);
+                            }}
+                            onDelete={handleDelete}
+                            onPin={() => togglePinChat(session.id)}
+                            onRename={() => { setRenamingChatId(session.id); setRenamingTitle(session.title); }}
+                            onExport={() => exportSingleChat(session.id)}
+                            onTagsClick={() => { setEditingTagsChatId(session.id); setShowTagsModal(true); }}
+                            isRenaming={renamingChatId === session.id}
+                            renamingTitle={renamingTitle}
+                            onRenamingChange={setRenamingTitle}
+                            onRenameSubmit={() => renameChat(session.id, renamingTitle)}
+                            onRenameCancel={() => { setRenamingChatId(null); setRenamingTitle(''); }}
+                            lang={settings.language}
+                            currentFilterTag={filterTag}
+                        />
+                    </div>
+                );
+            })}
         </div>
 
         {/* Bottom - User profile + Settings */}
@@ -1556,6 +1990,45 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-1">
+                {/* In-chat search - inline */}
+                {showInChatSearch ? (
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                        settings.theme === 'light' ? 'bg-gray-100' : 'bg-[#0a0a0a]'
+                    }`}>
+                        <Search size={16} className={settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-600'} />
+                        <input
+                            type="text"
+                            value={inChatSearchQuery}
+                            onChange={(e) => setInChatSearchQuery(e.target.value)}
+                            placeholder={settings.language === 'ru' ? 'Поиск...' : 'Search...'}
+                            autoFocus
+                            className={`w-32 md:w-48 text-[13px] bg-transparent outline-none ${
+                                settings.theme === 'light' ? 'text-gray-900 placeholder-gray-400' : 'text-white placeholder-zinc-500'
+                            }`}
+                        />
+                        {inChatSearchResults.length > 0 && (
+                            <span className={`text-[11px] whitespace-nowrap ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-500'}`}>
+                                {inChatSearchResults.length}
+                            </span>
+                        )}
+                        <button
+                            onClick={() => { setShowInChatSearch(false); setInChatSearchQuery(''); }}
+                            className={`p-1 rounded-full ${settings.theme === 'light' ? 'text-gray-400 hover:text-gray-600' : 'text-zinc-500 hover:text-white'}`}
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                ) : (
+                    <button 
+                        onClick={() => setShowInChatSearch(true)}
+                        className={`p-2.5 rounded-lg transition-colors ${
+                            settings.theme === 'light' ? 'text-gray-500 active:text-gray-700' : 'text-zinc-400 active:text-white'
+                        }`} 
+                        title={settings.language === 'ru' ? 'Поиск в чате' : 'Search in chat'}
+                    >
+                        <Search size={20} />
+                    </button>
+                )}
                 {/* Desktop: show buttons */}
                 <button 
                     onClick={shareChat} 
@@ -1600,15 +2073,35 @@ const App: React.FC = () => {
                             <div className={`absolute right-0 top-full mt-1 w-52 rounded-xl shadow-xl z-50 overflow-hidden animate-dropdown ${
                                 settings.theme === 'light' ? 'bg-white border border-gray-200' : 'bg-[#0a0a0a] border border-zinc-800/50'
                             }`}>
-                                <button
-                                    onClick={() => { shareChat(); setShowChatMenu(false); }}
-                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
-                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
-                                    }`}
-                                >
-                                    <Share2 size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
-                                    <span className="text-[14px]">{settings.language === 'ru' ? 'Поделиться' : 'Share'}</span>
-                                </button>
+                                {/* Pin - only for non-project chats */}
+                                {!currentSession?.projectId && (
+                                    <button
+                                        onClick={() => {
+                                            if (currentSessionId) {
+                                                togglePinChat(currentSessionId);
+                                            }
+                                            setShowChatMenu(false);
+                                        }}
+                                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                                            settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+                                        }`}
+                                    >
+                                        {(() => {
+                                            const isPinnedInContext = filterTag 
+                                                ? (currentSession?.pinnedInTags || []).includes(filterTag)
+                                                : currentSession?.isPinned;
+                                            return (
+                                                <>
+                                                    {isPinnedInContext 
+                                                        ? <PinOff size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                                        : <Pin size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                                    }
+                                                    <span className="text-[14px]">{isPinnedInContext ? (settings.language === 'ru' ? 'Открепить' : 'Unpin') : (settings.language === 'ru' ? 'Закрепить' : 'Pin')}</span>
+                                                </>
+                                            );
+                                        })()}
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         const newTitle = prompt(settings.language === 'ru' ? 'Новое название:' : 'New title:', currentSession?.title || '');
@@ -1623,6 +2116,34 @@ const App: React.FC = () => {
                                 >
                                     <Edit3 size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
                                     <span className="text-[14px]">{settings.language === 'ru' ? 'Переименовать' : 'Rename'}</span>
+                                </button>
+                                {/* Tags - only for non-project chats */}
+                                {!currentSession?.projectId && (
+                                    <button
+                                        onClick={() => {
+                                            if (currentSessionId) {
+                                                setEditingTagsChatId(currentSessionId);
+                                                setShowTagsModal(true);
+                                            }
+                                            setShowChatMenu(false);
+                                        }}
+                                        className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                                            settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+                                        }`}
+                                    >
+                                        <Hash size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                        <span className="text-[14px]">{settings.language === 'ru' ? 'Теги' : 'Tags'}</span>
+                                    </button>
+                                )}
+                                <div className={`border-t ${settings.theme === 'light' ? 'border-gray-100' : 'border-zinc-800/50'}`} />
+                                <button
+                                    onClick={() => { shareChat(); setShowChatMenu(false); }}
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left transition-colors ${
+                                        settings.theme === 'light' ? 'text-gray-700 active:bg-gray-100' : 'text-white active:bg-zinc-800/50'
+                                    }`}
+                                >
+                                    <Share2 size={16} className={settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'} />
+                                    <span className="text-[14px]">{settings.language === 'ru' ? 'Поделиться' : 'Share'}</span>
                                 </button>
                                 <button
                                     onClick={() => { setIsDownloadModalOpen(true); setShowChatMenu(false); }}
@@ -1708,30 +2229,43 @@ const App: React.FC = () => {
                     </div>
                 )}
                 
-                {currentSession && currentSession.messages.map((msg, index) => (
-                    <MessageBubble 
-                        key={msg.id + index} 
-                        message={msg} 
-                        userProfile={userProfile}
-                        isStreaming={isStreaming && index === currentSession.messages.length - 1}
-                        onRegenerate={() => handleRegenerate(index)}
-                        onRate={(rating) => handleRateMessage(msg.id, rating)}
-                        onOpenPreview={(code, language) => setPreviewPanel({ isOpen: true, code, language })}
-                        onEdit={msg.role === Role.USER ? (newText) => handleEditMessage(msg.id, newText) : undefined}
-                        onDelete={() => handleDeleteMessage(msg.id)}
-                        isEditing={editingMessageId === msg.id}
-                        onStartEdit={() => { setEditingMessageId(msg.id); setEditingText(msg.text); }}
-                        onCancelEdit={() => { setEditingMessageId(null); setEditingText(''); }}
-                        editingText={editingText}
-                        onEditingTextChange={setEditingText}
-                        onFollowUpClick={(question) => {
-                            // Send follow-up question as new message
-                            handleSendMessage(question, [], settings.webSearchEnabled, settings.chatMode, settings.responseLength);
-                        }}
-                        lang={settings.language}
-                        isLight={settings.theme === 'light'}
-                    />
-                ))}
+                {currentSession && currentSession.messages.map((msg, index) => {
+                    return (
+                        <div 
+                            key={msg.id + index}
+                            id={`msg-${msg.id}`}
+                        >
+                            <MessageBubble 
+                                message={msg} 
+                                userProfile={userProfile}
+                                isStreaming={isStreaming && index === currentSession.messages.length - 1}
+                                onRegenerate={() => handleRegenerate(index)}
+                                onRate={(rating) => handleRateMessage(msg.id, rating)}
+                                onOpenPreview={(code, language) => setPreviewPanel({ isOpen: true, code, language })}
+                                onEdit={msg.role === Role.USER ? (newText) => handleEditMessage(msg.id, newText) : undefined}
+                                onDelete={() => handleDeleteMessage(msg.id)}
+                                isEditing={editingMessageId === msg.id}
+                                onStartEdit={() => { setEditingMessageId(msg.id); setEditingText(msg.text); }}
+                                onCancelEdit={() => { setEditingMessageId(null); setEditingText(''); }}
+                                editingText={editingText}
+                                onEditingTextChange={setEditingText}
+                                onFollowUpClick={(question) => {
+                                    if (isStreaming) return;
+                                    setSessions(prev => prev.map(s => {
+                                      if (s.id === currentSessionId) {
+                                        return { ...s, messages: s.messages.map(m => ({ ...m, suggestedQuestions: undefined })) };
+                                      }
+                                      return s;
+                                    }));
+                                    handleSendMessage(question, [], settings.webSearchEnabled, settings.chatMode, settings.responseLength);
+                                }}
+                                lang={settings.language}
+                                searchHighlight={showInChatSearch ? inChatSearchQuery : undefined}
+                                isLight={settings.theme === 'light'}
+                            />
+                        </div>
+                    );
+                })}
                 <div ref={messagesEndRef} className="h-2" />
             </div>
 
@@ -1792,13 +2326,40 @@ const App: React.FC = () => {
       <LiveVoiceModal 
         isOpen={isLiveModeOpen}
         onClose={() => setIsLiveModeOpen(false)}
-        systemInstruction={settings.customSystemInstruction || `Ты голосовой помощник NEO. Отвечай кратко и естественно.`}
+        systemInstruction={settings.customSystemInstruction || (settings.language === 'ru' ? 'Ты голосовой помощник NEO. Отвечай кратко и естественно.' : 'You are NEO voice assistant. Be brief and natural.')}
         userName={userProfile.name}
         userBio={userProfile.bio}
         adultMode={settings.adultMode}
         language={settings.language}
         modelLanguage={settings.modelLanguage}
         isLight={settings.theme === 'light'}
+        responseLength={settings.responseLength}
+        incognito={settings.incognito}
+        onSaveMessage={settings.incognito ? undefined : (userText, aiText) => {
+          if (!currentSessionId) return;
+          const session = sessions.find(s => s.id === currentSessionId);
+          if (!session) return;
+          
+          const userMsg = {
+            id: `voice_user_${Date.now()}`,
+            role: Role.USER,
+            text: userText,
+            timestamp: Date.now()
+          };
+          const aiMsg = {
+            id: `voice_ai_${Date.now()}`,
+            role: Role.MODEL,
+            text: aiText,
+            timestamp: Date.now() + 1
+          };
+          
+          const updatedSession = {
+            ...session,
+            messages: [...session.messages, userMsg, aiMsg],
+            updatedAt: Date.now()
+          };
+          setSessions(prev => prev.map(s => s.id === currentSessionId ? updatedSession : s));
+        }}
       />
 
       <CodePreviewPanel
@@ -1818,6 +2379,20 @@ const App: React.FC = () => {
         isLight={settings.theme === 'light'}
       />
 
+      {/* Offline Indicator */}
+      <OfflineIndicator 
+        isLight={settings.theme === 'light'} 
+        lang={settings.language} 
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showKeyboardShortcuts}
+        onClose={() => setShowKeyboardShortcuts(false)}
+        isLight={settings.theme === 'light'}
+        lang={settings.language}
+      />
+
       <NewProjectModal
         isOpen={isNewProjectModalOpen}
         onClose={() => setIsNewProjectModalOpen(false)}
@@ -1834,6 +2409,108 @@ const App: React.FC = () => {
         isRu={settings.language === 'ru'}
         isLight={settings.theme === 'light'}
       />
+
+      {/* Tags Modal */}
+      {showTagsModal && editingTagsChatId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowTagsModal(false); setEditingTagsChatId(null); }} />
+          <div className={`relative w-full max-w-sm rounded-2xl p-4 border ${settings.theme === 'light' ? 'bg-white border-gray-200' : 'bg-[#0a0a0a] border-zinc-800/50'}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${settings.theme === 'light' ? 'text-gray-900' : 'text-white'}`}>
+                {settings.language === 'ru' ? 'Теги' : 'Tags'}
+              </h3>
+              <button
+                onClick={() => { setShowTagsModal(false); setEditingTagsChatId(null); }}
+                className={`p-2 rounded-lg ${settings.theme === 'light' ? 'text-gray-500 hover:bg-gray-100' : 'text-zinc-400 hover:bg-zinc-800'}`}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Add new tag - max 5 */}
+            {availableTags.length < 5 ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = (e.target as HTMLFormElement).elements.namedItem('newTag') as HTMLInputElement;
+                  if (input.value.trim() && availableTags.length < 5 && editingTagsChatId) {
+                    const newTag = input.value.trim().toLowerCase();
+                    addNewTag(newTag);
+                    toggleChatTag(editingTagsChatId, newTag);
+                    input.value = '';
+                  }
+                }}
+                className="mb-4"
+              >
+                <div className="flex gap-2">
+                  <input
+                    name="newTag"
+                    type="text"
+                    placeholder={settings.language === 'ru' ? 'Новый тег...' : 'New tag...'}
+                    className={`flex-1 px-3 py-2 rounded-xl text-[14px] outline-none border ${
+                      settings.theme === 'light' 
+                        ? 'bg-gray-100 text-gray-900 placeholder-gray-400 border-gray-200' 
+                        : 'bg-[#141414] text-white placeholder-zinc-500 border-zinc-800/50'
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    className={`px-4 py-2 rounded-xl text-[14px] font-medium ${
+                      settings.theme === 'light' 
+                        ? 'bg-gray-900 text-white' 
+                        : 'bg-white text-black'
+                    }`}
+                  >
+                    {settings.language === 'ru' ? 'Добавить' : 'Add'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className={`text-[12px] text-center py-2 mb-3 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-500'}`}>
+                {settings.language === 'ru' ? 'Максимум 5 тегов' : 'Maximum 5 tags'}
+              </p>
+            )}
+            
+            {/* Existing tags */}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {availableTags.length === 0 ? (
+                <p className={`text-[13px] text-center py-4 ${settings.theme === 'light' ? 'text-gray-400' : 'text-zinc-500'}`}>
+                  {settings.language === 'ru' ? 'Нет тегов' : 'No tags yet'}
+                </p>
+              ) : (
+                availableTags.map(tag => {
+                  const chat = sessions.find(s => s.id === editingTagsChatId);
+                  const isSelected = (chat?.tags || []).includes(tag);
+                  return (
+                    <div
+                      key={tag}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors border ${
+                        isSelected
+                          ? (settings.theme === 'light' ? 'bg-gray-900 text-white border-gray-900' : 'bg-zinc-700 text-white border-zinc-600')
+                          : (settings.theme === 'light' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200' : 'bg-[#141414] text-zinc-300 hover:bg-[#1a1a1a] border-zinc-800')
+                      }`}
+                      onClick={() => editingTagsChatId && toggleChatTag(editingTagsChatId, tag)}
+                    >
+                      <span className="text-[14px]">#{tag}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(settings.language === 'ru' ? 'Удалить тег?' : 'Delete tag?')) {
+                            deleteTag(tag);
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-600' : 'text-zinc-500 hover:text-red-500 hover:bg-zinc-800'}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

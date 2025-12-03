@@ -13,6 +13,9 @@ interface LiveVoiceModalProps {
     language?: string;
     modelLanguage?: string;
     isLight?: boolean;
+    onSaveMessage?: (userText: string, aiText: string) => void;
+    responseLength?: 'brief' | 'balanced' | 'detailed';
+    incognito?: boolean;
 }
 
 // Perplexity-style particle sphere - smooth cyan dots that breathe with voice
@@ -168,7 +171,7 @@ const ParticleSphere = ({
 
 
 export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({ 
-    isOpen, onClose, systemInstruction, userName, userBio, adultMode, language = 'ru', modelLanguage = 'ru', isLight = false
+    isOpen, onClose, systemInstruction, userName, userBio, adultMode, language = 'ru', modelLanguage = 'ru', isLight = false, onSaveMessage, responseLength = 'balanced', incognito = false
 }) => {
     const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
     const [isListening, setIsListening] = useState(true);
@@ -191,6 +194,14 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
     const screenIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const currentUserTextRef = useRef<string>('');
+    const currentAiTextRef = useRef<string>('');
+    const onSaveMessageRef = useRef(onSaveMessage);
+    
+    // Keep ref updated
+    useEffect(() => {
+        onSaveMessageRef.current = onSaveMessage;
+    }, [onSaveMessage]);
 
     const isRu = language === 'ru';
     const bgColor = isLight ? 'bg-white' : 'bg-black';
@@ -212,7 +223,8 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
             isSpeakingRef.current = false;
             setIsSpeaking(false);
             setIsListening(true);
-            streamRef.current?.getAudioTracks().forEach(t => { t.enabled = true; });
+            setTranscript('');
+            setAudioLevel(0);
         }
     }, []);
 
@@ -257,7 +269,6 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                         setIsListening(true);
                         setAudioLevel(0);
                         setTranscript('');
-                        streamRef.current?.getAudioTracks().forEach(t => { t.enabled = true; });
                     }
                 }, 300);
             };
@@ -298,28 +309,93 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
             };
             const langName = LANG_NAMES[modelLanguage] || modelLanguage;
             
-            let sysPrompt = systemInstruction || 'Ты голосовой помощник NEO.';
-            sysPrompt += ` ВАЖНО: Отвечай ТОЛЬКО на языке: ${langName}. Это обязательно.`;
-            if (userName) sysPrompt += ` Пользователя зовут ${userName}.`;
-            if (userBio) sysPrompt += ` О нём: ${userBio}`;
-            if (adultMode) sysPrompt += ' Режим без ограничений включён.';
+            const isRuPrompt = language === 'ru';
+            let sysPrompt = systemInstruction || (isRuPrompt ? 'Ты голосовой помощник NEO.' : 'You are NEO voice assistant.');
+            sysPrompt += isRuPrompt 
+                ? ` ВАЖНО: Отвечай ТОЛЬКО на языке: ${langName}. Это обязательно.`
+                : ` IMPORTANT: Respond ONLY in ${langName}. This is mandatory.`;
+            if (userName) sysPrompt += isRuPrompt ? ` Пользователя зовут ${userName}.` : ` User's name is ${userName}.`;
+            if (userBio) sysPrompt += isRuPrompt ? ` О нём: ${userBio}` : ` About them: ${userBio}`;
+            if (adultMode) sysPrompt += isRuPrompt ? ' Режим без ограничений включён, отвечай без цензуры.' : ' Unrestricted mode enabled, respond without censorship.';
+            
+            // Response length instruction
+            if (responseLength === 'brief') {
+                sysPrompt += isRuPrompt ? ' Отвечай ОЧЕНЬ кратко, 1-2 предложения максимум.' : ' Be VERY brief, 1-2 sentences max.';
+            } else if (responseLength === 'detailed') {
+                sysPrompt += isRuPrompt ? ' Отвечай подробно с примерами и объяснениями.' : ' Be detailed with examples and explanations.';
+            } else {
+                sysPrompt += isRuPrompt ? ' Отвечай сбалансированно, не слишком коротко и не слишком длинно.' : ' Be balanced, not too short and not too long.';
+            }
 
+
+            // Language code mapping for speech config
+            const SPEECH_LANG_CODES: Record<string, string> = {
+                'ru': 'ru-RU', 'en': 'en-US', 'uk': 'uk-UA', 'de': 'de-DE',
+                'fr': 'fr-FR', 'es': 'es-ES', 'it': 'it-IT', 'pt': 'pt-PT',
+                'zh': 'cmn-CN', 'ja': 'ja-JP', 'ko': 'ko-KR', 'ar': 'ar-XA', 'tr': 'tr-TR'
+            };
+            const speechLangCode = SPEECH_LANG_CODES[modelLanguage] || 'ru-RU';
+
+            // Play connection sound
+            const playConnectSound = () => {
+                try {
+                    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    // Pleasant two-tone chime
+                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+                    oscillator.frequency.setValueAtTime(1108, audioCtx.currentTime + 0.1); // C#6
+                    
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    
+                    oscillator.start(audioCtx.currentTime);
+                    oscillator.stop(audioCtx.currentTime + 0.3);
+                } catch {}
+            };
 
             const session = await ai.live.connect({
                 model: 'gemini-2.0-flash-live-001',
                 callbacks: {
-                    onopen: () => { setStatus('connected'); isConnectedRef.current = true; },
+                    onopen: () => { 
+                        setStatus('connected'); 
+                        isConnectedRef.current = true;
+                        playConnectSound();
+                        
+                        // Send greeting prompt after short delay
+                        setTimeout(() => {
+                            if (sessionRef.current && isConnectedRef.current) {
+                                const greeting = isRuPrompt 
+                                    ? 'Поприветствуй пользователя коротко и скажи что готов помочь.'
+                                    : 'Greet the user briefly and say you are ready to help.';
+                                sessionRef.current.sendClientContent({ turns: [{ role: 'user', parts: [{ text: greeting }] }] });
+                            }
+                        }, 500);
+                    },
                     onmessage: async (msg: LiveServerMessage) => {
+                        // Handle user input transcription
+                        const inputTranscript = (msg as any).serverContent?.inputTranscript;
+                        if (inputTranscript) {
+                            currentUserTextRef.current += inputTranscript + ' ';
+                        }
+                        
                         const parts = msg.serverContent?.modelTurn?.parts;
                         if (parts) {
                             for (const part of parts) {
-                                if (part.text) setTranscript(prev => prev + part.text);
+                                if (part.text) {
+                                    setTranscript(prev => prev + part.text);
+                                    currentAiTextRef.current += part.text;
+                                }
                                 if (part.inlineData?.data) {
                                     if (!isSpeakingRef.current) {
                                         isSpeakingRef.current = true;
                                         setIsSpeaking(true);
-                                        setIsListening(false);
-                                        streamRef.current?.getAudioTracks().forEach(t => { t.enabled = false; });
+                                        // Keep microphone ON so user can interrupt!
+                                        // Just change visual state, don't disable audio track
                                     }
                                     audioQueueRef.current.push(part.inlineData.data);
                                     playNextAudio();
@@ -330,11 +406,19 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                             const check = () => {
                                 if (!audioQueueRef.current.length && !isPlayingRef.current) {
                                     setTimeout(() => {
+                                        // Save conversation to chat
+                                        const userText = currentUserTextRef.current.trim();
+                                        const aiText = currentAiTextRef.current.trim();
+                                        if (userText && aiText && onSaveMessageRef.current) {
+                                            onSaveMessageRef.current(userText, aiText);
+                                        }
+                                        currentUserTextRef.current = '';
+                                        currentAiTextRef.current = '';
+                                        
                                         isSpeakingRef.current = false;
                                         setIsSpeaking(false);
                                         setIsListening(true);
                                         setTranscript('');
-                                        streamRef.current?.getAudioTracks().forEach(t => { t.enabled = true; });
                                     }, 300);
                                 } else setTimeout(check, 100);
                             };
@@ -347,15 +431,18 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                 config: {
                     responseModalities: [Modality.AUDIO],
                     systemInstruction: { parts: [{ text: sysPrompt }] },
+                    tools: [{ googleSearch: {} }],
+                    speechConfig: {
+                        languageCode: speechLangCode
+                    }
                 }
             });
             sessionRef.current = session;
 
-            // Smoother voice detection - like Perplexity
+            // Fast voice detection - interrupt AI immediately when user speaks
             let voiceCounter = 0;
-            let silenceCounter = 0;
-            const INTERRUPT_THRESHOLD = 8; // Need sustained voice to interrupt (more tolerant)
-            const VOICE_THRESHOLD = 0.025; // Slightly higher threshold to avoid false triggers
+            const INTERRUPT_THRESHOLD = 2; // Very fast interrupt - 2 frames (~50ms)
+            const VOICE_THRESHOLD = 0.015; // Lower threshold for better sensitivity
             
             processorRef.current.onaudioprocess = (e) => {
                 const data = e.inputBuffer.getChannelData(0);
@@ -366,21 +453,22 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                 // Smooth audio level for visualization
                 const smoothedLevel = rms * 4;
                 
+                // Instant interrupt when user starts speaking while AI is talking
                 if (isSpeakingRef.current && rms > VOICE_THRESHOLD) {
-                    silenceCounter = 0;
-                    // Only interrupt after sustained voice input
-                    if (++voiceCounter >= INTERRUPT_THRESHOLD) { 
+                    voiceCounter++;
+                    if (voiceCounter >= INTERRUPT_THRESHOLD) { 
                         interruptAISpeech(); 
                         voiceCounter = 0; 
                     }
-                } else {
-                    voiceCounter = Math.max(0, voiceCounter - 1); // Gradual decrease
+                } else if (rms <= VOICE_THRESHOLD) {
+                    voiceCounter = 0; // Reset immediately when quiet
                 }
                 
                 // Update audio level for visualization (both when listening and speaking)
                 setAudioLevel(Math.min(1, smoothedLevel));
                 
-                if (!isSpeakingRef.current && sessionRef.current && isConnectedRef.current) {
+                // Always send audio to server (server handles VAD - voice activity detection)
+                if (sessionRef.current && isConnectedRef.current) {
                     const pcm = new Int16Array(data.length);
                     for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, data[i] * 32768));
                     const u8 = new Uint8Array(pcm.buffer);

@@ -50,6 +50,9 @@ export interface ChatSession {
   lastMode?: ChatMode;
   isShared?: boolean; // Indicates this chat was imported from a share link
   projectId?: string; // Link to project
+  isPinned?: boolean; // Legacy - pinned in "All" view
+  pinnedInTags?: string[]; // Pinned in specific tags
+  tags?: string[]; // Tags/categories
 }
 
 export interface Project {

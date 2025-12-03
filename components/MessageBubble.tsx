@@ -25,6 +25,7 @@ interface MessageBubbleProps {
   onFollowUpClick?: (question: string) => void; // Handle follow-up question click
   lang?: string;
   isLight?: boolean;
+  searchHighlight?: string; // Text to highlight in message
 }
 
 // Hook for liquid smooth typing effect
@@ -54,6 +55,64 @@ const useSmoothTyping = (text: string | undefined, isStreaming: boolean) => {
     }, [safeText, isStreaming]);
 
     return displayedText;
+};
+
+// Blockquote component - plain text only, no markdown formatting
+const BlockquoteBox = ({ contentText, isLight, lang }: { contentText: string, isLight: boolean, lang: string }) => {
+    const [isCopied, setIsCopied] = useState(false);
+    const isRu = lang === 'ru';
+    
+    const handleCopy = () => {
+        navigator.clipboard.writeText(contentText);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+    
+    // Remove markdown formatting for display
+    const cleanText = contentText
+        .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove **bold**
+        .replace(/\*(.*?)\*/g, '$1')       // Remove *italic*
+        .replace(/__(.*?)__/g, '$1')       // Remove __bold__
+        .replace(/_(.*?)_/g, '$1')         // Remove _italic_
+        .replace(/`(.*?)`/g, '$1')         // Remove `code`
+        .replace(/^#+\s*/gm, '')           // Remove # headers
+        .replace(/^>\s*/gm, '')            // Remove > quotes
+        .replace(/^[-*+]\s*/gm, '• ')      // Convert list markers to bullets
+        .replace(/^\d+\.\s*/gm, (m) => m); // Keep numbered lists
+    
+    return (
+        <div className="relative my-4">
+            <div 
+                className="rounded-xl p-4 relative overflow-hidden"
+                style={{
+                    backgroundColor: isLight ? '#f4f4f5' : '#0a0a0a',
+                    border: 'none'
+                }}
+            >
+                <div 
+                    className="absolute top-0 left-0 w-1 h-full rounded-l-xl"
+                    style={{ backgroundColor: isLight ? '#a1a1aa' : '#3f3f46' }}
+                />
+                <pre 
+                    className="text-sm pl-4 pr-20 whitespace-pre-wrap font-sans"
+                    style={{ 
+                        color: isLight ? '#3f3f46' : '#d4d4d8',
+                        margin: 0,
+                        fontFamily: 'inherit'
+                    }}
+                >
+                    {cleanText}
+                </pre>
+            </div>
+            <button 
+                onClick={handleCopy}
+                className="absolute top-3 right-3 p-1 transition-all hover:opacity-70"
+                style={{ color: isCopied ? '#22c55e' : (isLight ? '#71717a' : '#71717a') }}
+            >
+                {isCopied ? <Check size={18} /> : <Copy size={18} />}
+            </button>
+        </div>
+    );
 };
 
 const WebPreview = ({ code, lang = 'en' }: { code: string, lang?: string }) => {
@@ -307,6 +366,31 @@ const CodeCopyButton = ({ code, codeId, lang = 'en' }: { code: string, codeId: n
     );
 };
 
+// Helper to highlight search text in string
+const HighlightText: React.FC<{ text: string; highlight?: string; isLight?: boolean }> = ({ text, highlight, isLight }) => {
+  if (!highlight || !highlight.trim()) return <>{text}</>;
+  
+  const parts = text.split(new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <mark 
+            key={i} 
+            className="bg-amber-500/30 text-inherit rounded px-0.5"
+            style={{ boxShadow: '0 0 0 2px rgba(245, 158, 11, 0.2)' }}
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+};
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message, 
   userProfile,
@@ -323,7 +407,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onEditingTextChange,
   onFollowUpClick,
   lang = 'en',
-  isLight = false
+  isLight = false,
+  searchHighlight
 }) => {
   const isUser = message.role === Role.USER;
   
@@ -553,7 +638,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
 
           {isUser ? (
-            <div className={`whitespace-pre-line font-sans break-words ${isEditing ? 'opacity-50' : ''}`}>{displayText}</div>
+            <div className={`whitespace-pre-line font-sans break-words ${isEditing ? 'opacity-50' : ''}`}>
+              <HighlightText text={displayText} highlight={searchHighlight} isLight={isLight} />
+            </div>
           ) : (
             <div className="font-sans markdown-body">
               <ReactMarkdown
@@ -621,19 +708,48 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                     const isCodeBlockWithoutLang = !inline && !match && codeText.includes('\n');
                     
                     if (!inline && (isTextBlock || isCodeBlockWithoutLang)) {
+                      // Plain text block - matte black style, no border, clean markdown
+                      const [copied, setCopied] = React.useState(false);
+                      const handleCopyText = () => {
+                          navigator.clipboard.writeText(codeText); // Copy original with formatting
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                      };
+                      // Clean markdown for display only
+                      const cleanDisplayText = codeText
+                          .replace(/\*\*(.*?)\*\*/g, '$1')  // **bold** -> bold
+                          .replace(/__(.*?)__/g, '$1')       // __bold__ -> bold
+                          .replace(/\*(.*?)\*/g, '$1')       // *italic* -> italic
+                          .replace(/_(.*?)_/g, '$1')         // _italic_ -> italic
+                          .replace(/`{3}[\s\S]*?`{3}/g, '')  // Remove code blocks
+                          .replace(/`(.*?)`/g, '$1')         // `code` -> code
+                          .replace(/^#{1,6}\s*/gm, '')       // # headers -> text
+                          .replace(/^>\s*/gm, '')            // > quotes -> text
+                          .replace(/^---+$/gm, '')           // --- horizontal line -> remove
+                          .replace(/^\s*\*\s+/gm, '• ')      // * list item -> • (with leading spaces)
+                          .replace(/^\s*-\s+/gm, '• ')       // - list item -> •
+                          .replace(/^\s*\+\s+/gm, '• ')      // + list item -> •
+                          .replace(/\n{3,}/g, '\n\n')        // Multiple newlines -> double
+                          .trim();
                       return (
                         <div className="relative my-3 sm:my-4 w-full">
-                            <div className="bg-black border border-white/10 rounded-xl shadow-sm relative overflow-hidden">
+                            <div 
+                                className="rounded-xl relative overflow-hidden"
+                                style={{ backgroundColor: isLight ? '#f4f4f5' : '#0a0a0a' }}
+                            >
                                 <button 
-                                    onClick={() => navigator.clipboard.writeText(codeText)}
-                                    className="absolute top-2 right-2 z-10 p-1.5 bg-white/5 text-white/50 rounded-lg hover:text-white hover:bg-white/10 border border-white/10 transition-all"
-                                    title="Copy"
+                                    onClick={handleCopyText}
+                                    className="absolute top-3 right-3 z-10 p-1 transition-all hover:opacity-70"
+                                    style={{ color: copied ? '#22c55e' : (isLight ? '#71717a' : '#71717a') }}
                                 >
-                                    <Copy size={14} />
+                                    {copied ? <Check size={18} /> : <Copy size={18} />}
                                 </button>
                                 <div className="max-h-[400px] overflow-y-auto p-4 pr-12 scrollbar-hide">
-                                    <div className="text-white/80 text-sm leading-relaxed font-sans whitespace-pre-wrap break-words">
-                                        {codeText}
+                                    <div 
+                                        className="text-sm leading-relaxed font-sans whitespace-pre-wrap break-words"
+                                        style={{ color: isLight ? '#3f3f46' : '#d4d4d8' }}
+                                    >
+                                        {cleanDisplayText}
                                     </div>
                                 </div>
                             </div>
@@ -706,7 +822,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   ul: ({node, ...props}) => <ul {...props} className="list-disc pl-5 my-4 space-y-1 text-text-secondary marker:text-text-secondary text-sm sm:text-[15px]" />,
                   ol: ({node, ...props}) => <ol {...props} className="list-decimal pl-5 my-4 space-y-1 text-text-secondary marker:text-text-secondary text-sm sm:text-[15px]" />,
                   
-                  // Gray Box Artifact (Perplexity Style Prompt)
+                  // Gray Box Artifact - plain text only, no markdown
                   blockquote: ({node, ...props}) => {
                       const getCleanText = (children: any): string => {
                         let txt = '';
@@ -717,27 +833,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                         return txt;
                       };
                       const contentText = getCleanText(props.children);
-                      const [isCopied, setIsCopied] = React.useState(false);
-
-                      return (
-                        <div className="relative group/bq my-6">
-                            <div className="bg-surface border border-white/10 rounded-xl p-5 shadow-sm relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-zinc-700"></div>
-                                <blockquote {...props} className="text-text-secondary text-sm font-mono whitespace-pre-wrap ml-2" style={{border: 'none', padding: 0}} />
-                            </div>
-                            <button 
-                                onClick={() => {
-                                    navigator.clipboard.writeText(contentText);
-                                    setIsCopied(true);
-                                    setTimeout(() => setIsCopied(false), 2000);
-                                }}
-                                className="absolute top-3 right-3 p-2 bg-surface-hover text-text-secondary rounded-lg hover:text-text border border-white/5 transition-all opacity-0 group-hover/bq:opacity-100"
-                                title={lang === 'ru' ? 'Копировать' : 'Copy Content'}
-                            >
-                                {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                            </button>
-                        </div>
-                      );
+                      return <BlockquoteBox contentText={contentText} isLight={isLight} lang={lang} />;
                   },
                   a: ({node, ...props}) => (
                       <a {...props} className="text-blue-400 hover:underline font-medium inline-flex items-center gap-0.5" target="_blank" rel="noopener noreferrer">
@@ -749,6 +845,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   th: ({node, ...props}) => <th {...props} className="px-4 py-3 font-semibold whitespace-nowrap" />,
                   td: ({node, ...props}) => <td {...props} className="px-4 py-3 border-t border-white/5 text-text-secondary" />,
                   hr: ({node, ...props}) => <hr {...props} className="my-8 border-white/5" />,
+                  text: ({node, ...props}: any) => {
+                    const textContent = String(props.children || node?.value || '');
+                    if (searchHighlight && searchHighlight.trim()) {
+                      return <HighlightText text={textContent} highlight={searchHighlight} isLight={isLight} />;
+                    }
+                    return <>{textContent}</>;
+                  },
                 }}
               >
                 {displayText}

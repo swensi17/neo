@@ -359,18 +359,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  // Close menu on outside click - only for desktop, mobile uses overlay
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuPage(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => {
-      document.removeEventListener('mousedown', handleClick);
-    };
-  }, []);
+
 
   // Auto-resize textarea - works for both normal and edit mode
   useEffect(() => {
