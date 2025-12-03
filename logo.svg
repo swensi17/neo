@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100">
+  <defs>
+    <!-- Градиент для акцента -->
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="50%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#06b6d4"/>
+    </linearGradient>
+    <!-- Свечение -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Фон -->
+  <rect width="400" height="100" fill="#000000"/>
+  
+  <!-- Иконка - стилизованная буква N в круге -->
+  <circle cx="50" cy="50" r="38" fill="#1a1a1a" stroke="url(#accentGradient)" stroke-width="2"/>
+  <text x="50" y="68" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="700" fill="white" text-anchor="middle" filter="url(#glow)">N</text>
+  
+  <!-- Текст NEO -->
+  <text x="110" y="65" font-family="Inter, Arial, sans-serif" font-size="52" font-weight="700" fill="white" letter-spacing="-2">NEO</text>
+  
+  <!-- Подзаголовок -->
+  <text x="215" y="65" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="400" fill="#71717a">Chat</text>
+  
+  <!-- Акцентная линия -->
+  <rect x="110" y="75" width="120" height="3" rx="1.5" fill="url(#accentGradient)" opacity="0.8"/>
+</svg>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="NEO - AI Chat Assistant powered by Gemini" />
+    <!-- PWA iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="NEO" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <!-- Manifest & Favicon -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <title>NEO Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              background: 'var(--background)',
+              sidebar: 'var(--sidebar)',
+              surface: 'var(--surface)',
+              'surface-hover': 'var(--surface-hover)',
+              text: 'var(--text)',
+              'text-secondary': 'var(--text-secondary)',
+              primary: '#ffffff',
+              accent: '#3b82f6',
+              danger: '#ef4444',
+            },
+            fontFamily: {
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+              mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+            },
+          },
+        },
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="/neo/assets/index-DiIZnqMN.js"></script>
+    <link rel="stylesheet" crossorigin href="/neo/assets/index-ChRikBwb.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
