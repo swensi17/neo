@@ -29,8 +29,9 @@ html, body {
 
 /* iOS Safe Areas for PWA */
 #root {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Prevent iOS zoom on input focus */
@@ -147,11 +148,11 @@ iframe { border: none; }
 @keyframes toast-down {
   from { 
     opacity: 0; 
-    transform: translateX(-50%) translateY(-10px); 
+    transform: translateY(-10px); 
   }
   to { 
     opacity: 1; 
-    transform: translateX(-50%) translateY(0); 
+    transform: translateY(0); 
   }
 }
 

@@ -34,13 +34,9 @@ export const Toast: React.FC<ToastProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] pointer-events-none">
+    <div className="fixed top-16 inset-x-0 z-[200] flex justify-center pointer-events-none px-4">
       <div 
-        className={`
-          pointer-events-auto px-4 py-2.5 rounded-full shadow-lg
-          ${isLight ? 'bg-zinc-800 text-white' : 'bg-zinc-800 text-white'}
-          animate-toast-down
-        `}
+        className="pointer-events-auto px-4 py-2 rounded-full shadow-lg bg-zinc-800 text-white animate-toast-down"
       >
         <p className="text-sm font-medium">{message}</p>
       </div>
