@@ -856,7 +856,7 @@ const App: React.FC = () => {
         `}
       >
         {/* Top bar - Search + New chat button */}
-        <div className="p-3 flex items-center gap-2">
+        <div className="p-3 flex items-center gap-2" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
             <div className="flex-1 relative">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" strokeWidth={2} />
                 <input
@@ -939,7 +939,7 @@ const App: React.FC = () => {
 
       <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 overflow-hidden ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
         
-        <header className="h-12 min-h-[48px] flex items-center justify-between px-3 z-30 bg-background border-b border-white/5">
+        <header className="flex items-center justify-between px-3 z-30 bg-background border-b border-white/5" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))', minHeight: 'calc(48px + env(safe-area-inset-top, 0px))' }}>
             <div className="flex items-center gap-2">
                 <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-text-secondary hover:text-text transition-colors p-2 -ml-2">
                     <Menu size={22} />
