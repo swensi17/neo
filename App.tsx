@@ -958,12 +958,12 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
+      <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 overflow-hidden ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
         
-        <header className="h-14 flex items-center justify-between px-4 z-30 sticky top-0 bg-background border-b border-white/5 flex-shrink-0">
-            <div className="flex items-center gap-3">
-                <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-text-secondary hover:text-text transition-colors p-2">
-                    <Menu size={20} />
+        <header className="h-12 min-h-[48px] flex items-center justify-between px-3 z-30 bg-background border-b border-white/5">
+            <div className="flex items-center gap-2">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-text-secondary hover:text-text transition-colors p-2 -ml-2">
+                    <Menu size={22} />
                 </button>
                 
                 <button 
@@ -973,14 +973,12 @@ const App: React.FC = () => {
                     {isSidebarOpen ? <ChevronLeft size={20} /> : <PanelLeft size={20} />}
                 </button>
 
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setIsSettingsOpen(true)}>
-                    <span className="font-medium text-sm text-text truncate max-w-[150px] md:max-w-xs">
-                        {currentSession?.title || 'NEO Chat'}
-                    </span>
-                </div>
+                <span className="font-medium text-sm text-text truncate max-w-[180px] md:max-w-xs">
+                    {currentSession?.title || 'NEO'}
+                </span>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
                 <button onClick={shareChat} className="text-text-secondary hover:text-text transition-colors p-2 rounded-lg hover:bg-surface-hover" title={settings.language === 'ru' ? 'Поделиться' : 'Share'}>
                     <Share2 size={18} />
                 </button>
