@@ -32,60 +32,64 @@ const WaveAnimation = ({ audioLevel }: { audioLevel: number }) => {
         if (!ctx) return;
 
         const resize = () => {
-            canvas.width = window.innerWidth * 2;
-            canvas.height = 300;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = 200 * dpr;
+            canvas.style.width = '100%';
+            canvas.style.height = '200px';
+            ctx.scale(dpr, dpr);
         };
         resize();
         window.addEventListener('resize', resize);
 
         const animate = () => {
-            // Smooth audio interpolation
-            smoothAudioRef.current += (audioLevel - smoothAudioRef.current) * 0.15;
+            // Smooth audio interpolation - faster response
+            smoothAudioRef.current += (audioLevel - smoothAudioRef.current) * 0.25;
             const audio = smoothAudioRef.current;
             
-            // Only animate time when there's audio
-            if (audio > 0.02) {
-                timeRef.current += 0.03 + audio * 0.05;
+            // Animate time based on audio - stronger effect
+            if (audio > 0.01) {
+                timeRef.current += 0.02 + audio * 0.1;
             }
             
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const w = canvas.width;
-            const h = canvas.height;
+            const w = window.innerWidth;
+            const h = 200;
+            ctx.clearRect(0, 0, w, h);
             
-            // Wave only visible and moving when audio is present
-            const intensity = audio * 1.5;
-            if (intensity < 0.01) {
+            // Wave visible when audio present - stronger response
+            const intensity = Math.min(1, audio * 3);
+            if (intensity < 0.005) {
                 animationRef.current = requestAnimationFrame(animate);
                 return;
             }
 
-            // Draw multiple wave layers
+            // Draw multiple wave layers - cyan/blue gradient
             for (let layer = 0; layer < 3; layer++) {
-                const layerOffset = layer * 0.3;
-                const alpha = Math.min(0.6, (0.3 - layer * 0.08) * intensity);
+                const layerOffset = layer * 0.4;
+                const alpha = Math.min(0.7, (0.4 - layer * 0.1) * intensity * 2);
                 
                 ctx.beginPath();
                 ctx.moveTo(0, h);
                 
-                for (let x = 0; x <= w; x += 4) {
+                for (let x = 0; x <= w; x += 2) {
                     const normalX = x / w;
-                    // Waves driven by audio level
-                    const wave1 = Math.sin(normalX * 4 + timeRef.current * 2 + layerOffset) * 25 * audio;
-                    const wave2 = Math.sin(normalX * 6 + timeRef.current * 1.5 + layerOffset) * 18 * audio;
-                    const wave3 = Math.sin(normalX * 10 + timeRef.current * 3 + layerOffset) * 12 * audio;
+                    // Stronger waves driven by audio
+                    const wave1 = Math.sin(normalX * 3 + timeRef.current * 2 + layerOffset) * 40 * intensity;
+                    const wave2 = Math.sin(normalX * 5 + timeRef.current * 1.5 + layerOffset) * 30 * intensity;
+                    const wave3 = Math.sin(normalX * 8 + timeRef.current * 3 + layerOffset) * 20 * intensity;
                     
-                    const y = h - 80 - (wave1 + wave2 + wave3);
+                    const y = h - 60 - (wave1 + wave2 + wave3);
                     ctx.lineTo(x, y);
                 }
                 
                 ctx.lineTo(w, h);
                 ctx.closePath();
                 
-                const gradient = ctx.createLinearGradient(0, h - 150, 0, h);
+                // Cyan gradient
+                const gradient = ctx.createLinearGradient(0, h - 120, 0, h);
                 gradient.addColorStop(0, `rgba(34, 211, 238, ${alpha})`);
-                gradient.addColorStop(0.5, `rgba(59, 130, 246, ${alpha * 0.7})`);
-                gradient.addColorStop(1, `rgba(99, 102, 241, ${alpha * 0.4})`);
+                gradient.addColorStop(0.6, `rgba(56, 189, 248, ${alpha * 0.6})`);
+                gradient.addColorStop(1, `rgba(34, 211, 238, ${alpha * 0.3})`);
                 ctx.fillStyle = gradient;
                 ctx.fill();
             }
@@ -103,8 +107,8 @@ const WaveAnimation = ({ audioLevel }: { audioLevel: number }) => {
     return (
         <canvas 
             ref={canvasRef} 
-            className="absolute bottom-0 left-0 w-full pointer-events-none"
-            style={{ height: 120 }}
+            className="w-full pointer-events-none"
+            style={{ height: 200 }}
         />
     );
 };
@@ -562,19 +566,21 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[200] bg-black">
-            {/* Video preview - full screen, stops before controls */}
+            {/* Video preview - full screen behind everything */}
             <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className={`absolute top-0 left-0 right-0 object-cover ${videoMode === 'camera' && facingMode === 'user' ? 'scale-x-[-1]' : ''} ${videoMode === 'none' ? 'hidden' : ''}`}
-                style={{ height: 'calc(100% - 100px)' }}
+                className={`absolute inset-0 w-full h-full object-cover ${videoMode === 'camera' && facingMode === 'user' ? 'scale-x-[-1]' : ''} ${videoMode === 'none' ? 'hidden' : ''}`}
             />
 
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center pt-4" style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
-                <div className="flex items-center gap-2 text-white">
+            {/* Header - absolute positioned */}
+            <div 
+                className="absolute top-0 left-0 right-0 flex items-center justify-center z-20"
+                style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+            >
+                <div className="flex items-center gap-2 text-white py-2">
                     <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`} />
                     <span className="text-sm font-medium">Live</span>
                 </div>
@@ -583,7 +589,7 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                 {videoMode === 'camera' && (
                     <button
                         onClick={switchCamera}
-                        className="absolute right-4 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
+                        className="absolute right-4 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
                     >
                         <RotateCcw size={18} />
                     </button>
@@ -592,8 +598,8 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
 
             {/* Transcript overlay */}
             {transcript && (
-                <div className="absolute top-20 left-0 right-0 px-6 z-20">
-                    <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-lg mx-auto">
+                <div className="absolute top-16 left-4 right-4 z-20">
+                    <div className="bg-black/50 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-lg mx-auto">
                         <p className="text-white text-center text-sm leading-relaxed">{transcript}</p>
                     </div>
                 </div>
@@ -601,22 +607,22 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
 
             {/* Center content when no video */}
             {videoMode === 'none' && (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ bottom: 100 }}>
+                <div className="absolute inset-0 flex items-center justify-center pb-32">
                     <p className="text-white/50 text-sm">{statusText}</p>
                 </div>
             )}
 
             {/* Wave animation - above controls */}
-            <div className="absolute bottom-[100px] left-0 right-0 h-[120px] overflow-hidden pointer-events-none">
+            <div className="absolute bottom-20 left-0 right-0 pointer-events-none" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
                 <WaveAnimation audioLevel={audioLevel} />
             </div>
 
-            {/* Bottom controls - FIXED at bottom */}
+            {/* Bottom controls - absolute at bottom */}
             <div 
-                className="absolute bottom-0 left-0 right-0 z-30 bg-black"
-                style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+                className="absolute bottom-0 left-0 right-0 z-30"
+                style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
             >
-                <div className="flex items-center justify-center gap-3 py-4">
+                <div className="flex items-center justify-center gap-3 py-3">
                     {/* Camera button */}
                     <button
                         onClick={toggleCamera}
