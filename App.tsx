@@ -1539,26 +1539,47 @@ const App: React.FC = () => {
         >
             <div className="max-w-3xl mx-auto px-4 pt-4">
                 {currentSession && currentSession.messages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
-                        <h2 className="text-xl md:text-2xl font-semibold mb-2 text-text tracking-tight">
+                    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+                        <h2 className="text-xl md:text-2xl font-semibold mb-6 text-text tracking-tight">
                             {settings.language === 'ru' ? `Привет, ${userProfile.name}` : `Hello, ${userProfile.name}`}
                         </h2>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mt-8">
-                            {(settings.language === 'ru' ? [
-                                { t: 'Объясни квантовые вычисления', d: 'Простыми словами' }, 
-                                { t: 'Напиши Python скрипт', d: 'Для автоматизации задач' }, 
-                            ] : [
-                                { t: 'Explain Quantum Computing', d: 'In simple terms' }, 
-                                { t: 'Write a Python Script', d: 'To automate daily tasks' }, 
-                            ]).map((item, i) => (
+                        <div className="flex flex-col gap-2 w-full max-w-md">
+                            {(() => {
+                                const allSuggestions = settings.language === 'ru' ? [
+                                    { t: 'Объясни квантовые вычисления', d: 'Простыми словами' },
+                                    { t: 'Напиши Python скрипт', d: 'Для автоматизации задач' },
+                                    { t: 'Создай план тренировок', d: 'На неделю для начинающих' },
+                                    { t: 'Помоги с рецептом', d: 'Быстрый и вкусный ужин' },
+                                    { t: 'Объясни машинное обучение', d: 'Как работают нейросети' },
+                                    { t: 'Напиши эссе', d: 'На любую тему' },
+                                    { t: 'Помоги с математикой', d: 'Решить задачу' },
+                                    { t: 'Придумай идею для проекта', d: 'Что-то интересное' },
+                                ] : [
+                                    { t: 'Explain Quantum Computing', d: 'In simple terms' },
+                                    { t: 'Write a Python Script', d: 'To automate daily tasks' },
+                                    { t: 'Create a workout plan', d: 'Weekly routine for beginners' },
+                                    { t: 'Help with a recipe', d: 'Quick and tasty dinner' },
+                                    { t: 'Explain machine learning', d: 'How neural networks work' },
+                                    { t: 'Write an essay', d: 'On any topic' },
+                                    { t: 'Help with math', d: 'Solve a problem' },
+                                    { t: 'Brainstorm project ideas', d: 'Something interesting' },
+                                ];
+                                // Shuffle and pick 3
+                                const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5);
+                                return shuffled.slice(0, 3);
+                            })().map((item, i) => (
                                 <button 
                                     key={i}
                                     onClick={() => handleSendMessage(item.t, [], false, ChatMode.STANDARD, settings.responseLength || 'detailed')}
-                                    className="text-left group bg-surface border border-white/5 p-3 rounded-xl hover:bg-surface-hover hover:border-white/10 transition-all shadow-sm"
+                                    className={`text-left group p-3 rounded-xl transition-all ${
+                                        settings.theme === 'light'
+                                            ? 'bg-gray-100 hover:bg-gray-200 border border-gray-200'
+                                            : 'bg-[#1a1a1a] hover:bg-[#252525] border border-zinc-800'
+                                    }`}
                                 >
-                                    <div className="text-sm font-medium text-text group-hover:text-text transition-colors">{item.t}</div>
-                                    <div className="text-[10px] text-text-secondary mt-0.5">{item.d}</div>
+                                    <div className="text-sm font-medium text-text">{item.t}</div>
+                                    <div className={`text-[11px] mt-0.5 ${settings.theme === 'light' ? 'text-gray-500' : 'text-zinc-500'}`}>{item.d}</div>
                                 </button>
                             ))}
                         </div>

@@ -563,22 +563,29 @@ export const InputArea: React.FC<InputAreaProps> = ({
 
       {/* Edit Mode Indicator */}
       {editingMessageId && (
-        <div className={`flex items-center gap-2 mb-2 px-2 py-2 rounded-xl ${isLight ? 'bg-blue-50 border border-blue-200' : 'bg-blue-500/10 border border-blue-500/20'}`}>
-          <div className={`w-1 h-8 rounded-full bg-blue-500`} />
+        <div className={`flex items-center gap-3 mb-2 px-3 py-2.5 rounded-xl ${isLight ? 'bg-gray-100 border border-gray-200' : 'bg-[#1a1a1a] border border-zinc-800'}`}>
           <div className="flex-1 min-w-0">
-            <div className={`text-xs font-medium ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
+            <div className={`text-xs font-medium ${textMuted} mb-0.5`}>
               {isRu ? 'Редактирование' : 'Editing'}
             </div>
-            <div className={`text-sm truncate ${text_color}`}>
-              {editingText?.slice(0, 50)}{(editingText?.length || 0) > 50 ? '...' : ''}
+            <div className={`text-sm ${text_color} line-clamp-2`}>
+              {editingText || ''}
             </div>
           </div>
-          <button
-            onClick={onCancelEdit}
-            className={`p-2 rounded-full ${isLight ? 'hover:bg-blue-100' : 'hover:bg-blue-500/20'} transition-colors`}
-          >
-            <X size={18} className={isLight ? 'text-blue-600' : 'text-blue-400'} />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={onSaveEdit}
+              className={`p-2 rounded-full ${isLight ? 'bg-gray-200 hover:bg-gray-300' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`}
+            >
+              <Check size={16} className={isLight ? 'text-gray-700' : 'text-white'} />
+            </button>
+            <button
+              onClick={onCancelEdit}
+              className={`p-2 rounded-full ${isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-800'} transition-colors`}
+            >
+              <X size={16} className={textMuted} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -630,7 +637,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                 disabled={!(editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))}
                 className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
                   (editingMessageId ? editingText?.trim() : (text.trim() || attachments.length > 0))
-                    ? (editingMessageId ? 'bg-blue-500 text-white' : (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black'))
+                    ? (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black')
                     : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
                 }`}
               >
@@ -656,7 +663,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
         )}
 
         {/* Main Input Container */}
-        <div className={`relative flex-1 ${bgCard} rounded-2xl flex items-center px-4 py-2 min-h-[44px] ${editingMessageId ? (isLight ? 'border-2 border-blue-300' : 'border-2 border-blue-500/50') : ''}`}>
+        <div className={`relative flex-1 ${bgCard} rounded-2xl flex items-center px-4 py-2 min-h-[44px] ${editingMessageId ? (isLight ? 'border border-gray-300' : 'border border-zinc-700') : ''}`}>
           {/* Expand button - show when text has 4+ lines (newlines) */}
           {(((editingMessageId ? editingText : text) || '').split('\n').length >= 4) && (
             <button
@@ -696,7 +703,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
               /* Edit mode: show save button */
               <button 
                 onClick={onSaveEdit} 
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white"
+                className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}
               >
                 <Check size={18} strokeWidth={2.5} />
               </button>
