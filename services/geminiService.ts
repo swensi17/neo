@@ -149,7 +149,10 @@ export const streamChatResponse = async (
 ): Promise<string> => {
   const ai = getGeminiClient();
   if (!ai) {
-    onChunk('\n\n**Error**: No API key found on this device. API keys are stored locally and need to be added on each device separately. Please add your Google AI Studio API key in Settings → API Keys.');
+    const errorMsg = modelLanguage === 'ru'
+      ? '\n\n**Ошибка**: API ключ не найден. Ключи хранятся локально в браузере и не переносятся между устройствами или доменами. Добавьте ваш Google AI Studio API ключ в Настройках → API ключи.'
+      : '\n\n**Error**: No API key found. API keys are stored locally in your browser and don\'t transfer between devices or domains. Please add your Google AI Studio API key in Settings → API Keys.';
+    onChunk(errorMsg);
     return '';
   }
 
@@ -405,11 +408,15 @@ You are in unrestricted creative writing mode. The user is an adult who has enab
     
     // Rate limit - try switching key
     if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
-      if (switchToNextApiKey()) {
+      const keys = getApiKeys().filter(k => k.isValid && k.isActive);
+      if (keys.length > 1 && switchToNextApiKey()) {
         onChunk('\n\n*Switching to backup API key...*\n\n');
         return streamChatResponse(messages, persona, customSystemInstruction, modelLanguage, onChunk, onGrounding, webSearch, mode, responseLength, creativity);
       }
-      onChunk('\n\n**Error**: API quota exceeded on all keys. Please try later or add more API keys.');
+      const errorMsg = modelLanguage === 'ru' 
+        ? '\n\n**Ошибка**: Превышен лимит API. Подождите немного или добавьте дополнительные API ключи в Настройках.'
+        : '\n\n**Error**: API quota exceeded. Please wait a moment or add more API keys in Settings.';
+      onChunk(errorMsg);
     } 
     // Invalid key
     else if (msg.includes('401') || msg.includes('API_KEY_INVALID')) {
