@@ -33,7 +33,9 @@ export interface Message {
   timestamp: number;
   attachments?: Attachment[];
   isThinking?: boolean;
+  isSearching?: boolean; // Show "Searching..." indicator
   groundingUrls?: Array<{ title: string; uri: string }>;
+  suggestedQuestions?: string[]; // Follow-up questions like Perplexity
   rating?: 'like' | 'dislike'; // User feedback
   mode?: ChatMode; // Track which mode generated this
 }

@@ -238,13 +238,13 @@ export const InputArea: React.FC<InputAreaProps> = ({
     };
   }, []);
 
-  // Auto-resize textarea
+  // Auto-resize textarea - works for both normal and edit mode
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
     }
-  }, [text]);
+  }, [text, editingText, editingMessageId]);
 
   const handleSend = () => {
     if ((!text.trim() && attachments.length === 0) || isStreaming) return;
@@ -572,20 +572,12 @@ export const InputArea: React.FC<InputAreaProps> = ({
               {editingText || ''}
             </div>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={onSaveEdit}
-              className={`p-2 rounded-full ${isLight ? 'bg-gray-200 hover:bg-gray-300' : 'bg-zinc-800 hover:bg-zinc-700'} transition-colors`}
-            >
-              <Check size={16} className={isLight ? 'text-gray-700' : 'text-white'} />
-            </button>
-            <button
-              onClick={onCancelEdit}
-              className={`p-2 rounded-full ${isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-800'} transition-colors`}
-            >
-              <X size={16} className={textMuted} />
-            </button>
-          </div>
+          <button
+            onClick={onCancelEdit}
+            className={`p-2 rounded-full ${isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-800'} transition-colors flex-shrink-0`}
+          >
+            <X size={16} className={textMuted} />
+          </button>
         </div>
       )}
 
@@ -648,22 +640,52 @@ export const InputArea: React.FC<InputAreaProps> = ({
         </div>
       )}
 
-      {/* Input Bar - Thin elegant design */}
+      {/* Active Settings Indicators - only for modes (web search visible in toggle) */}
+      {!editingMessageId && settings.mode !== ChatMode.STANDARD && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          {settings.mode === ChatMode.RESEARCH && (
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isLight ? 'bg-purple-100 text-purple-700' : 'bg-purple-500/20 text-purple-400'}`}>
+              <BookOpen size={12} />
+              <span>{isRu ? 'Исследование' : 'Research'}</span>
+              <button 
+                onClick={() => setSettings(s => ({ ...s, mode: ChatMode.STANDARD }))}
+                className="ml-0.5 hover:opacity-70"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+          {settings.mode === ChatMode.LABS && (
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/20 text-green-400'}`}>
+              <FlaskConical size={12} />
+              <span>{isRu ? 'Лаборатория' : 'Labs'}</span>
+              <button 
+                onClick={() => setSettings(s => ({ ...s, mode: ChatMode.STANDARD }))}
+                className="ml-0.5 hover:opacity-70"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Input Bar - buttons stay at bottom, textarea grows up */}
       <div className="flex items-end gap-2">
-        {/* Plus Button - Hidden in edit mode, always at bottom */}
+        {/* Plus Button - Hidden in edit mode, stays at bottom */}
         {!editingMessageId && (
           <button
             onClick={() => setMenuPage(menuPage ? null : 'add')}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0 mb-0.5 ${
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0 self-end ${
               isLight ? 'bg-gray-200 text-gray-600' : 'bg-zinc-800 text-zinc-400'
             } ${menuPage ? (isLight ? 'bg-gray-300' : 'bg-zinc-700 text-white') : ''}`}
           >
-            <Plus size={22} strokeWidth={1.5} />
+            <Plus size={20} strokeWidth={1.5} />
           </button>
         )}
 
         {/* Main Input Container */}
-        <div className={`relative flex-1 ${bgCard} rounded-2xl flex items-center px-4 py-2 min-h-[44px] ${editingMessageId ? (isLight ? 'border border-gray-300' : 'border border-zinc-700') : ''}`}>
+        <div className={`relative flex-1 ${bgCard} rounded-2xl flex items-center px-4 py-2.5 min-h-[44px] ${editingMessageId ? (isLight ? 'border border-gray-300' : 'border border-zinc-700') : ''}`}>
           {/* Expand button - show when text has 4+ lines (newlines) */}
           {(((editingMessageId ? editingText : text) || '').split('\n').length >= 4) && (
             <button
@@ -697,15 +719,20 @@ export const InputArea: React.FC<InputAreaProps> = ({
             style={{ fontSize: '16px' }}
           />
 
-          {/* Right Icons inside input */}
+          {/* Right Icons */}
           <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
             {editingMessageId ? (
-              /* Edit mode: show save button */
+              /* Edit mode: show send arrow to save */
               <button 
                 onClick={onSaveEdit} 
-                className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'bg-gray-900 text-white' : 'bg-white text-black'}`}
+                disabled={!editingText?.trim()}
+                className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                  editingText?.trim() 
+                    ? (isLight ? 'bg-gray-900 text-white' : 'bg-white text-black') 
+                    : (isLight ? 'bg-gray-200 text-gray-400' : 'bg-zinc-800 text-zinc-600')
+                }`}
               >
-                <Check size={18} strokeWidth={2.5} />
+                <ArrowUp size={18} strokeWidth={2.5} />
               </button>
             ) : isStreaming ? (
               <button onClick={onStop} className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full">

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, AppSettings, TRANSLATIONS, InterfaceLanguage, ApiKey, KnowledgeItem } from '../types';
-import { X, Upload, User, Moon, Sun, Globe, Shield, Trash2, Sliders, FileText, Plus, Key, Check, AlertCircle, Loader2, Search, Sparkles, ChevronRight, ExternalLink, Volume2, VolumeX, Mail, Bell, Database, Lock, Palette, Languages, Bot, Zap } from 'lucide-react';
+import { X, Upload, User, Moon, Sun, Trash2, Plus, Key, Check, AlertCircle, Loader2, Search, Sparkles, ChevronRight, Volume2, Lock, Palette, Languages, Bot, Zap, MessageCircle, Mail, HelpCircle, Github } from 'lucide-react';
 import { getApiKeys, saveApiKeys, validateApiKey } from '../services/geminiService';
 
 // 40 Preset Personas
@@ -58,7 +58,7 @@ interface SettingsModalProps {
   initialPage?: SubPage;
 }
 
-type SubPage = 'main' | 'api' | 'language' | 'profile' | 'persona' | 'appearance' | 'data' | 'sound';
+type SubPage = 'main' | 'api' | 'language' | 'profile' | 'persona' | 'appearance' | 'data' | 'sound' | 'support';
 
 // 50+ Languages for AI responses
 const AI_LANGUAGES = [
@@ -414,6 +414,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         onClick={() => { if(confirm(t.clearHistoryConfirm)) { onClearHistory(); } }}
         danger
       />
+
+      <div className={`border-t ${divider}`} />
+
+      {/* Support */}
+      <SectionHeader title={isRu ? 'Поддержка' : 'Support'} />
+      <MenuItem 
+        icon={<HelpCircle size={20} />} 
+        label={isRu ? 'Связаться с разработчиком' : 'Contact Developer'} 
+        onClick={() => setSubPage('support')} 
+      />
     </div>
   );
 
@@ -717,6 +727,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     </div>
   );
 
+  // Support Page
+  const renderSupport = () => (
+    <div>
+      <BackHeader title={isRu ? 'Поддержка' : 'Support'} onBack={() => setSubPage('main')} />
+      
+      {/* Privacy & Security Info */}
+      <div className={`mb-6 p-4 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-black border-zinc-800'}`}>
+        <div className="flex items-start gap-3">
+          <Lock size={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <div className={`text-[14px] font-medium ${text} mb-1`}>
+              {isRu ? 'Ваши данные защищены' : 'Your data is protected'}
+            </div>
+            <div className={`text-[13px] ${textMuted} leading-relaxed`}>
+              {isRu 
+                ? 'Все данные хранятся локально на вашем устройстве. Мы не собираем и не передаём вашу личную информацию.'
+                : 'All data is stored locally on your device. We do not collect or transmit your personal information.'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact section */}
+      <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3 px-1`}>
+        {isRu ? 'Связаться с нами' : 'Contact us'}
+      </div>
+      
+      <div className="space-y-0">
+        <a 
+          href="https://t.me/swensi17" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
+        >
+          <div className="flex items-center gap-3">
+            <MessageCircle size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>{isRu ? 'Написать в Telegram' : 'Message on Telegram'}</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+        
+        <div className={`border-t ${divider} ml-12`} />
+        
+        <a 
+          href="mailto:tutatutaev9@gmail.com" 
+          className={`flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
+        >
+          <div className="flex items-center gap-3">
+            <Mail size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>{isRu ? 'Написать на почту' : 'Send an email'}</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+        
+        <div className={`border-t ${divider} ml-12`} />
+        
+        <a 
+          href="https://github.com/swensi17/neo" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`flex items-center justify-between py-3.5 px-1 ${itemBg} touch-manipulation`}
+        >
+          <div className="flex items-center gap-3">
+            <Github size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>GitHub</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+      </div>
+
+      {/* Version info */}
+      <div className={`mt-8 text-center text-[12px] ${textMuted}`}>
+        NEO Chat v4.0
+      </div>
+    </div>
+  );
+
   // Desktop Sidebar Item
   const SidebarItem = ({ id, icon, label }: { id: SubPage, icon: React.ReactNode, label: string }) => (
     <button 
@@ -747,6 +834,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <SidebarItem id="persona" icon={<Bot size={18} />} label={isRu ? 'Роль AI' : 'AI Role'} />
             <SidebarItem id="language" icon={<Languages size={18} />} label={isRu ? 'Язык' : 'Language'} />
             <SidebarItem id="appearance" icon={<Palette size={18} />} label={isRu ? 'Тема' : 'Theme'} />
+            <SidebarItem id="support" icon={<HelpCircle size={18} />} label={isRu ? 'Поддержка' : 'Support'} />
           </div>
 
           <div className="mt-auto pt-4">
@@ -770,6 +858,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {subPage === 'persona' && (isRu ? 'Роль AI' : 'AI Role')}
               {subPage === 'language' && (isRu ? 'Язык' : 'Language')}
               {subPage === 'appearance' && (isRu ? 'Тема' : 'Theme')}
+              {subPage === 'support' && (isRu ? 'Поддержка' : 'Support')}
               {subPage === 'main' && t.settings}
             </span>
             <button onClick={onClose} className={`w-8 h-8 flex items-center justify-center rounded-full ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} transition-colors`}>
@@ -778,13 +867,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Page Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            {subPage === 'main' && renderProfile()}
-            {subPage === 'api' && <div className="max-w-md">{renderApiContent()}</div>}
-            {subPage === 'profile' && renderProfileContent()}
-            {subPage === 'persona' && renderPersonaContent()}
-            {subPage === 'language' && renderLanguageContent()}
-            {subPage === 'appearance' && renderAppearanceContent()}
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="max-w-lg mx-auto">
+              {subPage === 'main' && renderProfile()}
+              {subPage === 'api' && renderApiContent()}
+              {subPage === 'profile' && renderProfileContent()}
+              {subPage === 'persona' && renderPersonaContent()}
+              {subPage === 'language' && renderLanguageContent()}
+              {subPage === 'appearance' && renderAppearanceContent()}
+              {subPage === 'support' && renderSupportContent()}
+            </div>
           </div>
         </div>
       </div>
@@ -881,7 +973,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   const renderProfileContent = () => (
-    <div className="max-w-md">
+    <div>
       {/* Avatar */}
       <div className="flex justify-center mb-6">
         <div 
@@ -949,7 +1041,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   const renderPersonaContent = () => (
-    <div className="max-w-md">
+    <div>
       {/* Search */}
       <div className="relative mb-4">
         <Search size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${textMuted}`} />
@@ -1007,7 +1099,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   const renderLanguageContent = () => (
-    <div className="max-w-md">
+    <div>
       {/* Interface Language */}
       <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3`}>{isRu ? 'Интерфейс' : 'Interface'}</div>
       <div className="space-y-1 mb-6">
@@ -1071,7 +1163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   );
 
   const renderAppearanceContent = () => (
-    <div className="max-w-md">
+    <div>
       <div className="space-y-1">
         <button 
           onClick={() => updateSettings({ theme: 'dark' })}
@@ -1105,6 +1197,76 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     </div>
   );
 
+  const renderSupportContent = () => (
+    <div>
+      {/* Privacy & Security Info */}
+      <div className={`mb-6 p-4 rounded-xl border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-black border-zinc-800'}`}>
+        <div className="flex items-start gap-3">
+          <Lock size={18} className="text-green-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <div className={`text-[14px] font-medium ${text} mb-1`}>
+              {isRu ? 'Ваши данные защищены' : 'Your data is protected'}
+            </div>
+            <div className={`text-[13px] ${textMuted} leading-relaxed`}>
+              {isRu 
+                ? 'Все данные хранятся локально на вашем устройстве. Мы не собираем, не передаём и не храним вашу личную информацию на серверах.'
+                : 'All data is stored locally on your device. We do not collect, transmit, or store your personal information on servers.'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact section */}
+      <div className={`text-[13px] ${textMuted} uppercase tracking-wider mb-3`}>
+        {isRu ? 'Связаться с нами' : 'Contact us'}
+      </div>
+      
+      <div className="space-y-1">
+        <a 
+          href="https://t.me/swensi17" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`flex items-center justify-between py-3 px-3 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]'}`}
+        >
+          <div className="flex items-center gap-3">
+            <MessageCircle size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>{isRu ? 'Написать в Telegram' : 'Message on Telegram'}</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+        
+        <a 
+          href="mailto:tutatutaev9@gmail.com" 
+          className={`flex items-center justify-between py-3 px-3 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]'}`}
+        >
+          <div className="flex items-center gap-3">
+            <Mail size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>{isRu ? 'Написать на почту' : 'Send an email'}</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+        
+        <a 
+          href="https://github.com/swensi17/neo" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`flex items-center justify-between py-3 px-3 rounded-lg transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-[#1a1a1a]'}`}
+        >
+          <div className="flex items-center gap-3">
+            <Github size={20} className={textMuted} />
+            <span className={`text-[15px] ${text}`}>GitHub</span>
+          </div>
+          <ChevronRight size={18} className={textMuted} />
+        </a>
+      </div>
+
+      {/* Version info */}
+      <div className={`mt-6 text-center text-[12px] ${textMuted}`}>
+        NEO Chat v4.0
+      </div>
+    </div>
+  );
+
   // Mobile Layout
   const renderMobile = () => (
     <div 
@@ -1130,6 +1292,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {subPage === 'persona' && renderPersona()}
         {subPage === 'language' && renderLanguage()}
         {subPage === 'appearance' && renderAppearance()}
+        {subPage === 'support' && renderSupport()}
       </div>
     </div>
   );

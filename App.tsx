@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Message, ChatSession, Role, UserProfile, AppSettings, Persona, TRANSLATIONS, InterfaceLanguage, ChatMode, Project } from './types';
-import { streamChatResponse, generateChatTitle, stopStreaming, hasValidApiKey, compressImage } from './services/geminiService';
+import { streamChatResponse, generateChatTitle, stopStreaming, hasValidApiKey, compressImage, generateFollowUpQuestions } from './services/geminiService';
 import { MessageBubble } from './components/MessageBubble';
 import { InputArea } from './components/InputArea';
 import { SettingsModal } from './components/SettingsModal';
@@ -851,6 +851,14 @@ const App: React.FC = () => {
       existingMessageId?: string 
     ) => {
     
+    // Determine if search will be used (same logic as in geminiService)
+    const lastUserMsg = messagesForContext[messagesForContext.length - 1];
+    const containsLink = lastUserMsg?.text?.includes('http') || lastUserMsg?.text?.includes('www.');
+    const searchKeywords = ['сегодня', 'сейчас', 'новости', 'последние', 'today', 'now', 'news', 'latest', 'кто такой', 'что такое', 'who is', 'what is', 'лучший', 'топ', 'best', 'top', 'погода', 'weather'];
+    const queryLower = (lastUserMsg?.text || '').toLowerCase();
+    const needsSearch = searchKeywords.some(kw => queryLower.includes(kw));
+    const willSearch = webSearch || mode === ChatMode.RESEARCH || containsLink || needsSearch;
+    
     let aiMsgId = existingMessageId;
     if (!aiMsgId) {
         aiMsgId = (Date.now() + 1).toString();
@@ -860,6 +868,7 @@ const App: React.FC = () => {
           text: '',
           timestamp: Date.now(),
           isThinking: true,
+          isSearching: willSearch, // Show searching indicator
           mode: mode 
         };
         const updatedSession = { ...currentSession, messages: [...messagesForContext, aiPlaceholder], lastMode: mode };
@@ -867,7 +876,7 @@ const App: React.FC = () => {
     } else {
         setSessions(prev => prev.map(s => {
             if (s.id === sessionId) {
-                 const newMessages = s.messages.map(m => m.id === aiMsgId ? { ...m, text: '', isThinking: true } : m);
+                 const newMessages = s.messages.map(m => m.id === aiMsgId ? { ...m, text: '', isThinking: true, isSearching: willSearch } : m);
                  return { ...s, messages: newMessages };
             }
             return s;
@@ -920,10 +929,14 @@ const App: React.FC = () => {
         userProfile.avatar
       );
 
+      // Get the final response text for follow-up generation
+      const finalResponseText = streamedText;
+      const userQuery = lastUserMsg?.text || '';
+      
       setSessions(prev => {
         const updated = prev.map(s => {
           if (s.id === sessionId) {
-              const newMessages = s.messages.map(m => m.id === aiMsgId ? { ...m, isThinking: false } : m);
+              const newMessages = s.messages.map(m => m.id === aiMsgId ? { ...m, isThinking: false, isSearching: false } : m);
               return { ...s, messages: newMessages };
           }
           return s;
@@ -948,6 +961,23 @@ const App: React.FC = () => {
       // Play notification sound when response is complete
       if (settings.soundEnabled) {
         playNotificationSound();
+      }
+      
+      // Generate follow-up questions (async, don't block)
+      if (finalResponseText && userQuery && mode === ChatMode.RESEARCH) {
+        generateFollowUpQuestions(userQuery, finalResponseText, settings.language).then(questions => {
+          if (questions.length > 0) {
+            setSessions(prev => prev.map(s => {
+              if (s.id === sessionId) {
+                const newMessages = s.messages.map(m => 
+                  m.id === aiMsgId ? { ...m, suggestedQuestions: questions } : m
+                );
+                return { ...s, messages: newMessages };
+              }
+              return s;
+            }));
+          }
+        }).catch(() => {}); // Ignore errors silently
       }
 
     } catch (e) {
@@ -1407,13 +1437,13 @@ const App: React.FC = () => {
       <main className={`flex-1 flex flex-col h-full relative bg-background transition-[width] duration-150 overflow-hidden ${previewPanel.isOpen ? 'md:w-[50%] lg:w-[55%] xl:w-[60%]' : 'w-full'}`}>
         
         <header 
-            className={`flex items-center justify-between px-3 z-30 bg-background relative shrink-0 ${
-                settings.theme === 'light' ? 'border-b border-gray-200' : 'border-b border-zinc-800'
+            className={`flex items-center justify-between px-3 z-30 relative shrink-0 ${
+                settings.theme === 'light' ? 'bg-white' : 'bg-black'
             }`} 
             style={{ 
-                paddingTop: 'max(12px, env(safe-area-inset-top))', 
-                minHeight: 'calc(52px + env(safe-area-inset-top, 0px))',
-                paddingBottom: '8px'
+                paddingTop: 'max(10px, env(safe-area-inset-top))', 
+                minHeight: 'calc(48px + env(safe-area-inset-top, 0px))',
+                paddingBottom: '6px'
             }}
         >
             <div className="flex items-center gap-2">
@@ -1445,22 +1475,22 @@ const App: React.FC = () => {
                             const IconComponent = getProjectIcon(selectedProject.icon);
                             return (
                                 <div 
-                                    className="w-7 h-7 rounded-full flex items-center justify-center"
-                                    style={{ backgroundColor: selectedProject.color === '#ffffff' ? '#1a1a1a' : selectedProject.color + '20' }}
+                                    className="w-6 h-6 rounded-lg flex items-center justify-center"
+                                    style={{ backgroundColor: selectedProject.color === '#ffffff' ? '#1a1a1a' : selectedProject.color + '15' }}
                                 >
-                                    <IconComponent size={16} style={{ color: selectedProject.color === '#ffffff' ? '#a1a1aa' : selectedProject.color }} />
+                                    <IconComponent size={14} style={{ color: selectedProject.color === '#ffffff' ? '#a1a1aa' : selectedProject.color }} />
                                 </div>
                             );
                         })()}
-                        <span className={`font-medium text-sm truncate max-w-[180px] md:max-w-xs ${
-                            settings.theme === 'light' ? 'text-gray-900' : 'text-white'
+                        <span className={`font-medium text-[15px] truncate max-w-[160px] md:max-w-xs ${
+                            settings.theme === 'light' ? 'text-gray-800' : 'text-zinc-200'
                         }`}>
                             {selectedProject.name}
                         </span>
                     </div>
                 ) : (
-                    <span className={`font-medium text-sm truncate max-w-[180px] md:max-w-xs ${
-                        settings.theme === 'light' ? 'text-gray-900' : 'text-white'
+                    <span className={`font-medium text-[15px] truncate max-w-[160px] md:max-w-xs ${
+                        settings.theme === 'light' ? 'text-gray-800' : 'text-zinc-200'
                     }`}>
                         {currentSession?.title || 'NEO'}
                     </span>
@@ -1636,11 +1666,15 @@ const App: React.FC = () => {
                         onCancelEdit={() => { setEditingMessageId(null); setEditingText(''); }}
                         editingText={editingText}
                         onEditingTextChange={setEditingText}
+                        onFollowUpClick={(question) => {
+                            // Send follow-up question as new message
+                            handleSendMessage(question, [], settings.webSearchEnabled, settings.chatMode, settings.responseLength);
+                        }}
                         lang={settings.language}
                         isLight={settings.theme === 'light'}
                     />
                 ))}
-                <div ref={messagesEndRef} className="h-4" />
+                <div ref={messagesEndRef} className="h-2" />
             </div>
 
             {showScrollButton && (
@@ -1657,7 +1691,7 @@ const App: React.FC = () => {
             )}
         </div>
 
-        <div className="w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-2 z-20 px-2 md:px-0 transition-colors duration-300" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+        <div className="w-full bg-gradient-to-t from-background via-background to-transparent pt-1 z-20 px-2 md:px-0 transition-colors duration-300" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
             <InputArea 
                 onSend={handleSendMessage} 
                 onStop={handleStopGeneration}

@@ -22,6 +22,7 @@ interface MessageBubbleProps {
   onCancelEdit?: () => void;
   editingText?: string;
   onEditingTextChange?: (text: string) => void;
+  onFollowUpClick?: (question: string) => void; // Handle follow-up question click
   lang?: string;
   isLight?: boolean;
 }
@@ -75,11 +76,71 @@ const WebPreview = ({ code, lang = 'en' }: { code: string, lang?: string }) => {
     );
 };
 
-// Sources carousel with scroll arrows
+// Helper to get favicon URL
+const getFaviconUrl = (uri: string) => {
+    try {
+        const url = new URL(uri);
+        return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=32`;
+    } catch {
+        return null;
+    }
+};
+
+// Helper to get domain category/type
+const getDomainType = (hostname: string): { type: string; color: string } => {
+    const domain = hostname.toLowerCase().replace('www.', '');
+    
+    // News sources
+    if (['bbc.com', 'cnn.com', 'reuters.com', 'nytimes.com', 'theguardian.com', 'ria.ru', 'tass.ru', 'lenta.ru', 'rbc.ru', 'kommersant.ru', 'vedomosti.ru', 'forbes.ru', 'forbes.com'].some(d => domain.includes(d))) {
+        return { type: 'News', color: 'text-red-400' };
+    }
+    // Wikipedia
+    if (domain.includes('wikipedia.org')) {
+        return { type: 'Wiki', color: 'text-blue-400' };
+    }
+    // Academic/Research
+    if (['arxiv.org', 'scholar.google', 'researchgate.net', 'academia.edu', 'pubmed', 'nature.com', 'science.org', 'springer.com'].some(d => domain.includes(d))) {
+        return { type: 'Research', color: 'text-purple-400' };
+    }
+    // Tech/Dev
+    if (['github.com', 'stackoverflow.com', 'dev.to', 'medium.com', 'hackernews', 'techcrunch.com', 'habr.com', 'geeksforgeeks.org'].some(d => domain.includes(d))) {
+        return { type: 'Tech', color: 'text-green-400' };
+    }
+    // Official/Gov
+    if (['.gov', '.edu', '.mil'].some(d => domain.includes(d))) {
+        return { type: 'Official', color: 'text-yellow-400' };
+    }
+    // E-commerce
+    if (['amazon.', 'ebay.', 'aliexpress.', 'ozon.ru', 'wildberries.ru'].some(d => domain.includes(d))) {
+        return { type: 'Shop', color: 'text-orange-400' };
+    }
+    
+    return { type: 'Web', color: 'text-zinc-400' };
+};
+
+// Sources section - collapsible like ChatGPT/Claude
+const SOURCES_COLLAPSED_KEY = 'neo_sources_collapsed';
+
 const SourcesCarousel = ({ sources, lang }: { sources: Array<{ title: string; uri: string }>, lang: string }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
+    
+    // Load collapsed state from localStorage
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem(SOURCES_COLLAPSED_KEY) === 'true';
+        } catch { return false; }
+    });
+
+    // Save collapsed state
+    const toggleCollapsed = () => {
+        const newState = !isCollapsed;
+        setIsCollapsed(newState);
+        try {
+            localStorage.setItem(SOURCES_COLLAPSED_KEY, String(newState));
+        } catch { /* ignore */ }
+    };
 
     const checkScroll = () => {
         if (scrollRef.current) {
@@ -90,63 +151,117 @@ const SourcesCarousel = ({ sources, lang }: { sources: Array<{ title: string; ur
     };
 
     useEffect(() => {
-        checkScroll();
-        const el = scrollRef.current;
-        if (el) el.addEventListener('scroll', checkScroll);
-        return () => { if (el) el.removeEventListener('scroll', checkScroll); };
-    }, []);
+        if (!isCollapsed) {
+            checkScroll();
+            const el = scrollRef.current;
+            if (el) el.addEventListener('scroll', checkScroll);
+            return () => { if (el) el.removeEventListener('scroll', checkScroll); };
+        }
+    }, [isCollapsed]);
 
     const scroll = (dir: 'left' | 'right') => {
         if (scrollRef.current) {
-            scrollRef.current.scrollBy({ left: dir === 'left' ? -250 : 250, behavior: 'smooth' });
+            scrollRef.current.scrollBy({ left: dir === 'left' ? -200 : 200, behavior: 'smooth' });
         }
     };
 
+    // Deduplicate sources
+    const uniqueSources = sources.filter((s, i, arr) => 
+        arr.findIndex(x => x.uri === s.uri) === i
+    );
+
     return (
         <div className="mt-4 w-full">
-            <div className="flex items-center justify-between mb-2 px-1">
-                <div className="flex items-center gap-2">
-                    <BookOpen size={14} className="text-text-secondary" />
-                    <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                        {lang === 'ru' ? 'Источники' : 'Sources'}
-                    </span>
-                </div>
-                <div className="hidden sm:flex items-center gap-1">
-                    <button 
-                        onClick={() => scroll('left')}
-                        disabled={!canScrollLeft}
-                        className={`p-1 rounded-lg transition-all ${canScrollLeft ? 'hover:bg-white/10 text-text-secondary hover:text-text' : 'text-white/20 cursor-default'}`}
-                    >
-                        <ChevronLeft size={18} />
-                    </button>
-                    <button 
-                        onClick={() => scroll('right')}
-                        disabled={!canScrollRight}
-                        className={`p-1 rounded-lg transition-all ${canScrollRight ? 'hover:bg-white/10 text-text-secondary hover:text-text' : 'text-white/20 cursor-default'}`}
-                    >
-                        <ChevronRight size={18} />
-                    </button>
-                </div>
-            </div>
+            {/* Header - clickable to collapse/expand */}
+            <button 
+                onClick={toggleCollapsed}
+                className="flex items-center gap-2 px-1 py-1 w-full text-left group"
+            >
+                <ChevronRight 
+                    size={14} 
+                    className={`text-zinc-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} 
+                />
+                <BookOpen size={14} className="text-zinc-500" />
+                <span className="text-xs font-medium text-zinc-400">
+                    {lang === 'ru' ? 'Источники' : 'Sources'}
+                </span>
+                <span className="text-[10px] text-zinc-600 bg-zinc-800/50 px-1.5 py-0.5 rounded">
+                    {uniqueSources.length}
+                </span>
+                
+                {/* Scroll arrows - only when expanded */}
+                {!isCollapsed && (
+                    <div className="ml-auto hidden sm:flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                            onClick={() => scroll('left')}
+                            disabled={!canScrollLeft}
+                            className={`p-1 rounded transition-all ${canScrollLeft ? 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300' : 'text-zinc-700 cursor-default'}`}
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button 
+                            onClick={() => scroll('right')}
+                            disabled={!canScrollRight}
+                            className={`p-1 rounded transition-all ${canScrollRight ? 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300' : 'text-zinc-700 cursor-default'}`}
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                )}
+            </button>
             
-            <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
-                {sources.map((g, i) => (
-                    <a 
-                        key={i} 
-                        href={g.uri} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex-shrink-0 w-52 sm:w-56 p-3 bg-surface border border-white/10 rounded-xl hover:bg-surface-hover transition-all group/source snap-start"
-                    >
-                        <div className="text-[10px] text-text-secondary truncate mb-1 flex items-center gap-1">
-                            <LinkIcon size={10} /> {new URL(g.uri).hostname.replace('www.', '')}
-                        </div>
-                        <div className="text-xs font-medium text-text line-clamp-2 group-hover/source:text-accent transition-colors">
-                            {g.title || (lang === 'ru' ? 'Результат поиска' : 'Web Result')}
-                        </div>
-                    </a>
-                ))}
-            </div>
+            {/* Sources list - collapsible */}
+            {!isCollapsed && (
+                <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-2 pt-2 scrollbar-hide snap-x">
+                    {uniqueSources.map((g, i) => {
+                        // Get real hostname, filter out Google proxy URLs
+                        let hostname = 'source';
+                        let realUri = g.uri;
+                        try {
+                            const url = new URL(g.uri);
+                            hostname = url.hostname.replace('www.', '');
+                            // If it's a Google proxy URL, try to extract real domain from title
+                            if (hostname.includes('vertexaisearch') || hostname.includes('googleapis') || hostname.includes('google.com/url')) {
+                                const titleDomain = g.title?.match(/([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2})?)/)?.[0];
+                                if (titleDomain) {
+                                    hostname = titleDomain.toLowerCase();
+                                }
+                            }
+                        } catch { /* ignore */ }
+                        
+                        // Get favicon from real hostname
+                        const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+                        
+                        return (
+                            <a 
+                                key={i} 
+                                href={realUri} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0 w-44 sm:w-48 p-2.5 bg-[#0a0a0a] border border-zinc-800/50 rounded-xl hover:bg-[#141414] hover:border-zinc-700 transition-all group/source snap-start"
+                            >
+                                {/* Favicon + Domain */}
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <img 
+                                        src={favicon} 
+                                        alt="" 
+                                        className="w-4 h-4 rounded-full flex-shrink-0" 
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2371717a" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+                                        }} 
+                                    />
+                                    <span className="text-[11px] text-zinc-500 truncate">{hostname}</span>
+                                </div>
+                                
+                                {/* Title */}
+                                <div className="text-[13px] text-zinc-300 line-clamp-2 group-hover/source:text-white transition-colors leading-snug">
+                                    {g.title || hostname}
+                                </div>
+                            </a>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };
@@ -206,13 +321,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onCancelEdit,
   editingText,
   onEditingTextChange,
+  onFollowUpClick,
   lang = 'en',
   isLight = false
 }) => {
   const isUser = message.role === Role.USER;
   
   // Theme classes
-  const bgUser = isLight ? 'bg-gray-100' : 'bg-black';
+  const bgUser = isLight ? 'bg-gray-100' : 'bg-[#1a1a1a]';
   const textMain = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-text-secondary';
   const border = isLight ? 'border-gray-200' : 'border-white/10';
@@ -345,17 +461,35 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-8 group animate-slide-up`}>
+    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-4 group animate-slide-up`}>
       <div className={`flex flex-col max-w-full md:max-w-[85%] lg:max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
         
-        {/* Name / Role Label */}
+        {/* Name / Role Label with Avatar */}
         <div className="flex items-center gap-2 mb-1.5 px-1">
             {isUser ? (
-                <span className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider`}>{userProfile.name}</span>
+                <div className="flex items-center gap-2">
+                    {userProfile.avatar ? (
+                        <img 
+                            src={userProfile.avatar} 
+                            alt="" 
+                            className="w-5 h-5 rounded-full object-cover"
+                        />
+                    ) : (
+                        <div className={`w-5 h-5 rounded-full ${isLight ? 'bg-gray-300' : 'bg-zinc-700'} flex items-center justify-center`}>
+                            <span className={`text-[9px] font-semibold ${isLight ? 'text-gray-600' : 'text-zinc-300'}`}>
+                                {userProfile.name.charAt(0).toUpperCase()}
+                            </span>
+                        </div>
+                    )}
+                    <span className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider`}>{userProfile.name}</span>
+                </div>
             ) : (
                 <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider flex items-center gap-1`}>
-                        NEO <Sparkles size={10} className={isLight ? 'text-gray-700' : 'text-white'} />
+                    <div className={`w-5 h-5 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-800'} flex items-center justify-center`}>
+                        <Sparkles size={10} className={isLight ? 'text-gray-700' : 'text-white'} />
+                    </div>
+                    <span className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider`}>
+                        NEO
                     </span>
                     {renderModeBadge()}
                 </div>
@@ -367,7 +501,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           className={`
             relative text-sm sm:text-[15px] leading-relaxed transition-all duration-200
             ${isUser 
-              ? `${bgUser} ${textMain} rounded-2xl rounded-tr-sm px-4 py-3 border ${border} max-w-[85%] break-words` 
+              ? `${bgUser} ${textMain} rounded-3xl px-4 py-2.5 max-w-[85%] break-words` 
               : `${textMain} w-full`
             }
           `}
@@ -625,6 +759,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   lang={lang} 
                   isLight={isLight}
                   sourcesCount={message.groundingUrls?.length || 0}
+                  isSearching={message.isSearching}
                 />
               )}
             </div>
@@ -696,6 +831,30 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         {/* Sources Section - Horizontal Carousel with arrows */}
         {message.groundingUrls && message.groundingUrls.length > 0 && !message.isThinking && (
              <SourcesCarousel sources={message.groundingUrls} lang={lang} />
+        )}
+
+        {/* Follow-up Questions - Perplexity style */}
+        {message.suggestedQuestions && message.suggestedQuestions.length > 0 && !message.isThinking && onFollowUpClick && (
+          <div className="mt-4 w-full">
+            <div className={`text-xs font-medium ${textSecondary} mb-2 px-1`}>
+              {lang === 'ru' ? 'Связанные вопросы' : 'Related questions'}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {message.suggestedQuestions.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => onFollowUpClick(q)}
+                  className={`px-3 py-2 text-sm rounded-xl border transition-all ${
+                    isLight 
+                      ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300' 
+                      : 'bg-[#1a1a1a] border-zinc-800 text-zinc-300 hover:bg-[#252525] hover:border-zinc-700'
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
       </div>

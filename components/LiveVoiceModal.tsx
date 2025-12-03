@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Mic, MicOff, Monitor, MonitorOff } from 'lucide-react';
+import { X, Mic, MicOff, Monitor, MonitorOff, Camera, CameraOff } from 'lucide-react';
 import { getGeminiClient } from '../services/geminiService';
 import { Modality, LiveServerMessage } from '@google/genai';
 
@@ -15,106 +15,153 @@ interface LiveVoiceModalProps {
     isLight?: boolean;
 }
 
-// Minimalist animated orb - CSS based, no canvas
-const AnimatedOrb = ({ 
-    isListening, 
-    isSpeaking, 
+// Perplexity-style particle sphere - smooth cyan dots that breathe with voice
+const ParticleSphere = ({ 
     audioLevel,
-    isLight
+    isActive
 }: { 
-    isListening: boolean; 
-    isSpeaking: boolean; 
     audioLevel: number;
-    isLight: boolean;
+    isActive: boolean;
 }) => {
-    const scale = 1 + audioLevel * 0.15;
-    const isActive = isListening || isSpeaking;
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const animationRef = useRef<number>(0);
+    const particlesRef = useRef<Array<{baseX: number; baseY: number; baseZ: number; offset: number}>>([]);
+    const timeRef = useRef(0);
+    const audioLevelRef = useRef(0);
+    const targetAudioRef = useRef(0);
+    const isActiveRef = useRef(false);
     
-    // Colors based on state
-    const getColors = () => {
-        if (isSpeaking) {
-            return isLight 
-                ? { primary: '#3b82f6', secondary: '#60a5fa', glow: 'rgba(59,130,246,0.4)' }
-                : { primary: '#60a5fa', secondary: '#93c5fd', glow: 'rgba(96,165,250,0.3)' };
-        }
-        if (isListening) {
-            return isLight
-                ? { primary: '#dc2626', secondary: '#f87171', glow: 'rgba(220,38,38,0.4)' }
-                : { primary: '#f87171', secondary: '#fca5a5', glow: 'rgba(248,113,113,0.3)' };
-        }
-        return isLight
-            ? { primary: '#6b7280', secondary: '#9ca3af', glow: 'rgba(107,114,128,0.2)' }
-            : { primary: '#9ca3af', secondary: '#d1d5db', glow: 'rgba(156,163,175,0.2)' };
-    };
+    // Update refs when props change (no re-render of animation)
+    useEffect(() => {
+        targetAudioRef.current = audioLevel;
+        isActiveRef.current = isActive;
+    }, [audioLevel, isActive]);
     
-    const colors = getColors();
-
+    // Initialize particles once
+    useEffect(() => {
+        const particles: typeof particlesRef.current = [];
+        const numParticles = 600; // Slightly fewer for performance
+        
+        for (let i = 0; i < numParticles; i++) {
+            // Fibonacci sphere for even distribution
+            const phi = Math.acos(1 - 2 * (i + 0.5) / numParticles);
+            const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+            
+            const radius = 90;
+            particles.push({
+                baseX: radius * Math.sin(phi) * Math.cos(theta),
+                baseY: radius * Math.sin(phi) * Math.sin(theta),
+                baseZ: radius * Math.cos(phi),
+                offset: Math.random() * Math.PI * 2 // Random phase for organic feel
+            });
+        }
+        particlesRef.current = particles;
+    }, []);
+    
+    // Single animation loop - never recreated
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        const size = 280;
+        canvas.width = size * 2; // Higher res
+        canvas.height = size * 2;
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+        ctx.scale(2, 2);
+        
+        const centerX = size / 2;
+        const centerY = size / 2;
+        
+        const animate = () => {
+            timeRef.current += 0.008; // Slower, smoother rotation
+            
+            // Smooth interpolation of audio level (key for smoothness!)
+            audioLevelRef.current += (targetAudioRef.current - audioLevelRef.current) * 0.15;
+            const smoothAudio = audioLevelRef.current;
+            const active = isActiveRef.current;
+            
+            ctx.clearRect(0, 0, size, size);
+            
+            const particles = particlesRef.current;
+            const cosR = Math.cos(timeRef.current);
+            const sinR = Math.sin(timeRef.current);
+            
+            // Pre-calculate and sort by depth
+            const projected: Array<{x: number; y: number; z: number; size: number}> = [];
+            
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                
+                // Rotate around Y axis
+                const x = p.baseX * cosR - p.baseZ * sinR;
+                const z = p.baseX * sinR + p.baseZ * cosR;
+                const y = p.baseY;
+                
+                // Breathing effect - particles move outward based on audio
+                // Only radial expansion, keeps sphere shape
+                const breathe = active ? 1 + smoothAudio * 0.25 : 1;
+                const pulse = Math.sin(timeRef.current * 3 + p.offset) * (active ? smoothAudio * 8 : 2);
+                
+                const finalX = x * breathe + (x / 90) * pulse;
+                const finalY = y * breathe + (y / 90) * pulse;
+                const finalZ = z * breathe;
+                
+                // 3D to 2D projection
+                const perspective = 350;
+                const scale = perspective / (perspective + finalZ);
+                
+                projected.push({
+                    x: centerX + finalX * scale,
+                    y: centerY + finalY * scale,
+                    z: finalZ,
+                    size: Math.max(1.2, 2.2 * scale)
+                });
+            }
+            
+            // Sort by z (back to front)
+            projected.sort((a, b) => a.z - b.z);
+            
+            // Draw particles
+            for (let i = 0; i < projected.length; i++) {
+                const p = projected[i];
+                const depthOpacity = 0.25 + 0.75 * ((p.z + 90) / 180);
+                const alpha = depthOpacity * (active ? 0.9 : 0.4);
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(34, 211, 238, ${alpha})`;
+                ctx.fill();
+            }
+            
+            animationRef.current = requestAnimationFrame(animate);
+        };
+        
+        animate();
+        
+        return () => cancelAnimationFrame(animationRef.current);
+    }, []); // Empty deps - animation runs once
+    
     return (
-        <div className="relative flex items-center justify-center">
-            {/* Outer glow rings */}
+        <div className="relative flex items-center justify-center" style={{ width: 300, height: 300 }}>
+            {/* Glow effect */}
             <div 
                 className="absolute rounded-full transition-all duration-500"
                 style={{
-                    width: 220,
-                    height: 220,
-                    background: `radial-gradient(circle, ${colors.glow} 0%, transparent 70%)`,
-                    transform: `scale(${isActive ? 1.2 + audioLevel * 0.3 : 1})`,
-                    opacity: isActive ? 0.8 : 0.3
+                    width: 280,
+                    height: 280,
+                    background: 'radial-gradient(circle, rgba(34,211,238,0.15) 0%, transparent 70%)',
+                    opacity: isActive ? 1 : 0.3
                 }}
             />
-            
-            {/* Middle ring */}
-            <div 
-                className="absolute rounded-full transition-all duration-300"
-                style={{
-                    width: 180,
-                    height: 180,
-                    border: `2px solid ${colors.secondary}`,
-                    opacity: isActive ? 0.5 + audioLevel * 0.3 : 0.2,
-                    transform: `scale(${scale})`
-                }}
+            <canvas 
+                ref={canvasRef} 
+                className="relative"
+                style={{ width: 300, height: 300 }}
             />
-            
-            {/* Main orb */}
-            <div 
-                className="relative rounded-full transition-all duration-200"
-                style={{
-                    width: 140,
-                    height: 140,
-                    background: `radial-gradient(circle at 30% 30%, ${colors.secondary}, ${colors.primary})`,
-                    boxShadow: `
-                        0 0 60px ${colors.glow},
-                        inset 0 0 40px rgba(255,255,255,0.1)
-                    `,
-                    transform: `scale(${scale})`
-                }}
-            >
-                {/* Inner highlight */}
-                <div 
-                    className="absolute rounded-full"
-                    style={{
-                        top: '15%',
-                        left: '20%',
-                        width: '30%',
-                        height: '30%',
-                        background: 'radial-gradient(circle, rgba(255,255,255,0.6) 0%, transparent 70%)',
-                    }}
-                />
-            </div>
-            
-            {/* Pulse animation when active */}
-            {isActive && (
-                <div 
-                    className="absolute rounded-full animate-ping"
-                    style={{
-                        width: 140,
-                        height: 140,
-                        border: `2px solid ${colors.primary}`,
-                        opacity: 0.3,
-                        animationDuration: '2s'
-                    }}
-                />
-            )}
         </div>
     );
 };
@@ -304,18 +351,34 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
             });
             sessionRef.current = session;
 
+            // Smoother voice detection - like Perplexity
             let voiceCounter = 0;
+            let silenceCounter = 0;
+            const INTERRUPT_THRESHOLD = 8; // Need sustained voice to interrupt (more tolerant)
+            const VOICE_THRESHOLD = 0.025; // Slightly higher threshold to avoid false triggers
+            
             processorRef.current.onaudioprocess = (e) => {
                 const data = e.inputBuffer.getChannelData(0);
                 let sum = 0;
                 for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
                 const rms = Math.sqrt(sum / data.length);
                 
-                if (isSpeakingRef.current && rms > 0.02) {
-                    if (++voiceCounter >= 3) { interruptAISpeech(); voiceCounter = 0; }
-                } else voiceCounter = 0;
+                // Smooth audio level for visualization
+                const smoothedLevel = rms * 4;
                 
-                if (!isSpeakingRef.current) setAudioLevel(Math.min(1, rms * 5));
+                if (isSpeakingRef.current && rms > VOICE_THRESHOLD) {
+                    silenceCounter = 0;
+                    // Only interrupt after sustained voice input
+                    if (++voiceCounter >= INTERRUPT_THRESHOLD) { 
+                        interruptAISpeech(); 
+                        voiceCounter = 0; 
+                    }
+                } else {
+                    voiceCounter = Math.max(0, voiceCounter - 1); // Gradual decrease
+                }
+                
+                // Update audio level for visualization (both when listening and speaking)
+                setAudioLevel(Math.min(1, smoothedLevel));
                 
                 if (!isSpeakingRef.current && sessionRef.current && isConnectedRef.current) {
                     const pcm = new Int16Array(data.length);
@@ -356,15 +419,25 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
         setTranscript('');
     }, []);
 
-    const toggleMic = () => {
-        if (isSpeakingRef.current) interruptAISpeech();
-        else if (streamRef.current) {
-            const newState = !isListening;
-            streamRef.current.getAudioTracks().forEach(t => { t.enabled = newState; });
-            setIsListening(newState);
+    // Mute button - just mutes mic, AI continues speaking
+    const toggleMute = () => {
+        if (streamRef.current) {
+            const newMuted = isListening; // if listening, mute it
+            streamRef.current.getAudioTracks().forEach(t => { t.enabled = !newMuted; });
+            setIsListening(!newMuted);
+        }
+    };
+    
+    // Interrupt AI when user wants to speak
+    const handleInterrupt = () => {
+        if (isSpeakingRef.current) {
+            interruptAISpeech();
         }
     };
 
+    // Check if mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
     const toggleScreen = async () => {
         if (isScreenSharing) {
             if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
@@ -372,13 +445,25 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
             setIsScreenSharing(false);
         } else {
             try {
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 } });
+                let stream: MediaStream;
+                
+                // On mobile, use camera instead of screen share
+                if (isMobile) {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    });
+                } else {
+                    // On desktop, use screen share
+                    stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 1 } });
+                }
+                
                 screenStreamRef.current = stream;
                 setIsScreenSharing(true);
                 
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 video.muted = true;
+                video.playsInline = true;
                 await video.play();
                 
                 if (!canvasRef.current) canvasRef.current = document.createElement('canvas');
@@ -394,22 +479,26 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                 };
                 
                 setTimeout(send, 500);
-                screenIntervalRef.current = setInterval(send, 2000);
+                // Send more frequently on mobile (camera) for better responsiveness
+                screenIntervalRef.current = setInterval(send, isMobile ? 1500 : 2000);
                 stream.getVideoTracks()[0].onended = () => {
                     if (screenIntervalRef.current) clearInterval(screenIntervalRef.current);
                     setIsScreenSharing(false);
                 };
-            } catch {}
+            } catch (err) {
+                console.error('Screen/camera share error:', err);
+            }
         }
     };
 
     if (!isOpen) return null;
 
+    // Perplexity-style status text
     const statusText = status === 'connecting' ? (isRu ? 'Подключение...' : 'Connecting...') 
         : status === 'error' ? (isRu ? 'Ошибка' : 'Error')
-        : isSpeaking ? (isRu ? 'Отвечаю...' : 'Speaking...')
-        : !isListening ? (isRu ? 'Пауза' : 'Paused')
-        : (isRu ? 'Слушаю...' : 'Listening...');
+        : isSpeaking ? (isRu ? 'Говорю...' : 'Speaking...')
+        : !isListening ? (isRu ? 'Микрофон выключен' : 'Microphone off')
+        : (isRu ? 'Скажите что-нибудь...' : 'Say something...');
 
 
     return (
@@ -424,27 +513,24 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                 </div>
             )}
             
-            {/* Center - Orb */}
+            {/* Center - Particle Sphere */}
             <div className="flex-1 flex flex-col items-center justify-center">
-                <AnimatedOrb 
-                    isListening={isListening && status === 'connected' && !isSpeaking} 
-                    isSpeaking={isSpeaking}
+                <ParticleSphere 
                     audioLevel={audioLevel}
-                    isLight={isLight}
+                    isActive={status === 'connected' && (isListening || isSpeaking)}
                 />
                 
-                <p className={`mt-10 text-sm font-medium tracking-wide ${
-                    isSpeaking ? (isLight ? 'text-blue-600' : 'text-blue-400') 
-                    : (isListening && status === 'connected') ? (isLight ? 'text-red-600' : 'text-red-400') 
-                    : textMuted
-                }`}>
+                <p className={`mt-6 text-sm tracking-wide ${isLight ? 'text-cyan-600' : 'text-cyan-400/70'}`}>
                     {statusText}
                 </p>
                 
                 {isScreenSharing && (
                     <p className={`mt-2 text-xs ${isLight ? 'text-green-600' : 'text-green-400'} flex items-center gap-1`}>
-                        <Monitor size={12} />
-                        {isRu ? 'Экран виден ИИ' : 'Screen visible to AI'}
+                        {isMobile ? <Camera size={12} /> : <Monitor size={12} />}
+                        {isMobile 
+                            ? (isRu ? 'Камера видна ИИ' : 'Camera visible to AI')
+                            : (isRu ? 'Экран виден ИИ' : 'Screen visible to AI')
+                        }
                     </p>
                 )}
             </div>
@@ -460,15 +546,16 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                     </button>
 
                     <button 
-                        onClick={toggleMic}
-                        className={`w-18 h-18 rounded-full flex items-center justify-center transition-all ${
-                            isSpeaking ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/40'
-                            : isListening ? 'bg-red-500 text-white shadow-lg shadow-red-500/40' 
-                            : `${btnBg} border ${textMuted}`
+                        onClick={toggleMute}
+                        className={`rounded-full flex items-center justify-center transition-all ${
+                            isListening
+                                ? 'bg-[#1a1a1a] border-2 border-cyan-500/50 text-cyan-400'
+                                : 'bg-[#1a1a1a] border-2 border-zinc-700 text-zinc-500'
                         }`}
-                        style={{ width: 72, height: 72 }}
+                        style={{ width: 64, height: 64 }}
+                        title={isListening ? (isRu ? 'Выключить микрофон' : 'Mute') : (isRu ? 'Включить микрофон' : 'Unmute')}
                     >
-                        {isListening || isSpeaking ? <Mic size={32} /> : <MicOff size={32} />}
+                        {isListening ? <Mic size={28} /> : <MicOff size={28} />}
                     </button>
 
                     <button 
@@ -477,14 +564,17 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
                             isScreenSharing ? 'bg-green-500 text-white shadow-lg shadow-green-500/40' 
                             : `${btnBg} border ${textMuted}`
                         }`}
+                        title={isMobile ? (isRu ? 'Камера' : 'Camera') : (isRu ? 'Экран' : 'Screen')}
                     >
-                        {isScreenSharing ? <Monitor size={22} /> : <MonitorOff size={22} />}
+                        {/* Show camera icon on mobile, monitor on desktop */}
+                        {isMobile 
+                            ? (isScreenSharing ? <Camera size={22} /> : <CameraOff size={22} />)
+                            : (isScreenSharing ? <Monitor size={22} /> : <MonitorOff size={22} />)
+                        }
                     </button>
                 </div>
 
-                <p className={`${textMuted} text-xs`}>
-                    {isRu ? 'Говорите — ИИ слушает' : 'Speak — AI listens'}
-                </p>
+
             </div>
         </div>
     );
